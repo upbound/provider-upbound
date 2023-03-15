@@ -36,10 +36,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-upbound/apis"
-	"github.com/crossplane/provider-upbound/apis/v1alpha1"
-	upbound "github.com/crossplane/provider-upbound/internal/controller"
-	"github.com/crossplane/provider-upbound/internal/controller/features"
+	"github.com/upbound/provider-upbound/apis"
+	"github.com/upbound/provider-upbound/apis/v1alpha1"
+	upbound "github.com/upbound/provider-upbound/internal/controller"
+	"github.com/upbound/provider-upbound/internal/controller/features"
 )
 
 func main() {

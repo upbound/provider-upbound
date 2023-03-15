@@ -32,9 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-upbound/apis/iam/v1alpha1"
-	apisv1alpha1 "github.com/crossplane/provider-upbound/apis/v1alpha1"
-	"github.com/crossplane/provider-upbound/internal/controller/features"
+	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
+	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	"github.com/upbound/provider-upbound/internal/controller/features"
 )
 
 const (

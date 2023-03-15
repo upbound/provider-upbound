@@ -1,4 +1,4 @@
-module github.com/crossplane/provider-upbound
+module github.com/upbound/provider-upbound
 
 go 1.19
 
@@ -7,6 +7,7 @@ require (
 	github.com/crossplane/crossplane-tools v0.0.0-20220901191540-806c0b01097b
 	github.com/google/go-cmp v0.5.9
 	github.com/pkg/errors v0.9.1
+	github.com/upbound/up-sdk-go v0.1.1-0.20230315151413-0c6238a7e913
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.3
