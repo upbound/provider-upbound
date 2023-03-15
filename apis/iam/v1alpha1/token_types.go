@@ -29,6 +29,7 @@ import (
 type Owner struct {
 	// Type of the owner account, like user or organization.
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=users;controlPlanes;robots
 	Type string `json:"type"`
 
 	// ID of the owner. It might be UUID or integer.
@@ -38,6 +39,11 @@ type Owner struct {
 
 // TokenParameters are the configurable fields of a Token.
 type TokenParameters struct {
+	// Name of the Token. This is different from the ID which is assigned by the
+	// Upbound API.
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+
 	// Owner of the Token.
 	// +kubebuilder:validation:Required
 	Owner Owner `json:"owner"`

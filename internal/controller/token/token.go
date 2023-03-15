@@ -20,37 +20,32 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	uperrors "github.com/upbound/up-sdk-go/errors"
+	"github.com/upbound/up-sdk-go/service/tokens"
 
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/controller/features"
 )
 
 const (
 	errNotToken     = "managed resource is not a Token custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
-	errGetPC        = "cannot get ProviderConfig"
-	errGetCreds     = "cannot get credentials"
 
 	errNewClient = "cannot create new Service"
-)
-
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
 )
 
 // Setup adds a controller that reconciles Token managed resources.
@@ -65,9 +60,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.TokenGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
+			kube:  mgr.GetClient(),
+			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithConnectionPublishers(cps...))
@@ -82,9 +77,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	kube  client.Client
+	usage resource.Tracker
 }
 
 // Connect typically produces an ExternalClient by:
@@ -102,23 +96,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	pc := &apisv1alpha1.ProviderConfig{}
-	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
-		return nil, errors.Wrap(err, errGetPC)
-	}
-
-	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errGetCreds)
-	}
-
-	svc, err := c.newServiceFn(data)
+	cfg, err := upclient.NewConfig(ctx, c.kube, cr)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{service: svc}, nil
+	return &external{service: tokens.NewClient(cfg)}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -126,7 +109,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service interface{}
+	service *tokens.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -135,23 +118,20 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotToken)
 	}
 
-	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
-
+	if meta.GetExternalName(cr) == "" {
+		return managed.ExternalObservation{}, nil
+	}
+	uid, err := uuid.Parse(meta.GetExternalName(cr))
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
+	}
+	resp, err := c.service.Get(ctx, uid)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
+	}
 	return managed.ExternalObservation{
-		// Return false when the external resource does not exist. This lets
-		// the managed resource reconciler know that it needs to call Create to
-		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
-
-		// Return false when the external resource exists, but it not up to date
-		// with the desired managed resource state. This lets the managed
-		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
-
-		// Return any details that may be required to connect to the external
-		// resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
+		ResourceExists:   true,
+		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.Name,
 	}, nil
 }
 
@@ -161,12 +141,30 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotToken)
 	}
 
-	fmt.Printf("Creating: %+v", cr)
+	resp, err := c.service.Create(ctx, &tokens.TokenCreateParameters{
+		Attributes: tokens.TokenAttributes{
+			Name: cr.Spec.ForProvider.Name,
+		},
+		Relationships: tokens.TokenRelationships{
+			Owner: tokens.TokenOwner{
+				Data: tokens.TokenOwnerData{
+					Type: tokens.TokenOwnerType(cr.Spec.ForProvider.Owner.Type),
+					ID:   cr.Spec.ForProvider.Owner.ID,
+				},
+			},
+		},
+	})
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "failed to create token")
+	}
+	meta.SetExternalName(cr, resp.ID.String())
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
+		ConnectionDetails: managed.ConnectionDetails{
+			"token": []byte(fmt.Sprint(resp.DataSet.Meta["jwt"])),
+		},
 	}, nil
 }
 
@@ -176,13 +174,12 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotToken)
 	}
 
-	fmt.Printf("Updating: %+v", cr)
-
-	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	_, err := c.service.Update(ctx, &tokens.TokenUpdateParameters{
+		Attributes: tokens.TokenAttributes{
+			Name: cr.Spec.ForProvider.Name,
+		},
+	})
+	return managed.ExternalUpdate{}, errors.Wrap(err, "failed to update token")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
@@ -190,8 +187,9 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotToken)
 	}
-
-	fmt.Printf("Deleting: %+v", cr)
-
-	return nil
+	uid, err := uuid.Parse(meta.GetExternalName(cr))
+	if err != nil {
+		return errors.Wrap(err, "cannot parse external name as UUID")
+	}
+	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.service.Delete(ctx, uid)), "failed to delete token")
 }

@@ -43,6 +43,9 @@ spec:
           spec:
             description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
             properties:
+              apiEndpoint:
+                description: Upbound API endpoint. Defaults to https://api.upbound.io
+                type: string
               credentials:
                 description: Credentials required to authenticate to this provider.
                 properties:
@@ -87,11 +90,7 @@ spec:
                   source:
                     description: Source of the provider credentials.
                     enum:
-                    - None
                     - Secret
-                    - InjectedIdentity
-                    - Environment
-                    - Filesystem
                     type: string
                 required:
                 - source

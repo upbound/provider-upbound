@@ -65,6 +65,10 @@ spec:
               forProvider:
                 description: TokenParameters are the configurable fields of a Token.
                 properties:
+                  name:
+                    description: Name of the Token. This is different from the ID
+                      which is assigned by the Upbound API.
+                    type: string
                   owner:
                     description: Owner of the Token.
                     properties:
@@ -73,12 +77,17 @@ spec:
                         type: string
                       type:
                         description: Type of the owner account, like user or organization.
+                        enum:
+                        - users
+                        - controlPlanes
+                        - robots
                         type: string
                     required:
                     - id
                     - type
                     type: object
                 required:
+                - name
                 - owner
                 type: object
               providerConfigRef:
