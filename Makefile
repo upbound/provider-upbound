@@ -1,6 +1,6 @@
 # ====================================================================================
 # Setup Project
-PROJECT_NAME := provider-template
+PROJECT_NAME := provider-upbound
 PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
@@ -71,9 +71,9 @@ dev: $(KIND) $(KUBECTL)
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
 	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
-	@$(INFO) Installing Provider Template CRDs
+	@$(INFO) Installing Provider Upbound CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(INFO) Starting Provider Template controllers
+	@$(INFO) Starting Provider Upbound controllers
 	@$(GO) run cmd/provider/main.go --debug
 
 dev-clean: $(KIND) $(KUBECTL)
@@ -98,7 +98,7 @@ $(GOMPLATE):
 
 export GOMPLATE
 
-# This target prepares repo for your provider by replacing all "template"
+# This target prepares repo for your provider by replacing all "upbound"
 # occurrences with your provider name.
 # This target can only be run once, if you want to rerun for some reason,
 # consider stashing/resetting your git state.

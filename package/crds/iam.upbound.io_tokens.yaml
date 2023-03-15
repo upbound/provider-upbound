@@ -5,18 +5,18 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: mytypes.sample.template.crossplane.io
+  name: tokens.iam.upbound.io
 spec:
-  group: sample.template.crossplane.io
+  group: iam.upbound.io
   names:
     categories:
     - crossplane
     - managed
-    - template
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    - upbound
+    kind: Token
+    listKind: TokenList
+    plural: tokens
+    singular: token
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -35,7 +35,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type.
+        description: A Token is an Upbound token that can be used to access Upbound
+          services.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -50,7 +51,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: A TokenSpec defines the desired state of a Token.
             properties:
               deletionPolicy:
                 default: Delete
@@ -62,12 +63,23 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: TokenParameters are the configurable fields of a Token.
                 properties:
-                  configurableField:
-                    type: string
+                  owner:
+                    description: Owner of the Token.
+                    properties:
+                      id:
+                        description: ID of the owner. It might be UUID or integer.
+                        type: string
+                      type:
+                        description: Type of the owner account, like user or organization.
+                        type: string
+                    required:
+                    - id
+                    - type
+                    type: object
                 required:
-                - configurableField
+                - owner
                 type: object
               providerConfigRef:
                 default:
@@ -241,13 +253,10 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: A TokenStatus represents the observed state of a Token.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
-                properties:
-                  observableField:
-                    type: string
+                description: TokenObservation are the observable fields of a Token.
                 type: object
               conditions:
                 description: Conditions of the resource.

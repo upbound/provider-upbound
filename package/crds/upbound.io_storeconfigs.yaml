@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: storeconfigs.template.crossplane.io
+  name: storeconfigs.upbound.io
 spec:
-  group: template.crossplane.io
+  group: upbound.io
   names:
     categories:
     - crossplane
@@ -32,8 +32,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A StoreConfig configures how GCP controller should store connection
-          details.
+        description: A StoreConfig configures how Upbound controller should store
+          connection details.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
