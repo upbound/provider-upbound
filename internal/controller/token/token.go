@@ -19,6 +19,9 @@ package token
 import (
 	"context"
 	"fmt"
+	"github.com/upbound/up-sdk-go/service/accounts"
+	"k8s.io/utils/pointer"
+	"strconv"
 
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -64,6 +67,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
+		managed.WithInitializers(),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithConnectionPublishers(cps...))
 
@@ -101,7 +105,10 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{service: tokens.NewClient(cfg)}, nil
+	return &external{
+		tokens:   tokens.NewClient(cfg),
+		accounts: accounts.NewClient(cfg),
+	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -109,7 +116,8 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service *tokens.Client
+	tokens   *tokens.Client
+	accounts *accounts.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -125,7 +133,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
 	}
-	resp, err := c.service.Get(ctx, uid)
+	resp, err := c.tokens.Get(ctx, uid)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
 	}
@@ -140,8 +148,24 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotToken)
 	}
+	id := pointer.StringDeref(cr.Spec.ForProvider.Owner.ID, "")
+	if id == "" {
+		if cr.Spec.ForProvider.Owner.Name == nil {
+			return managed.ExternalCreation{}, errors.New("owner name is required when owner id is not supplied")
+		}
+		a, err := c.accounts.Get(ctx, *cr.Spec.ForProvider.Owner.Name)
+		if err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "failed to get account")
+		}
+		switch a.Account.Type {
+		case accounts.AccountOrganization:
+			id = strconv.Itoa(int(a.Organization.ID))
+		case accounts.AccountUser:
+			id = strconv.Itoa(int(a.User.ID))
+		}
+	}
 
-	resp, err := c.service.Create(ctx, &tokens.TokenCreateParameters{
+	resp, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
 		Attributes: tokens.TokenAttributes{
 			Name: cr.Spec.ForProvider.Name,
 		},
@@ -149,7 +173,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			Owner: tokens.TokenOwner{
 				Data: tokens.TokenOwnerData{
 					Type: tokens.TokenOwnerType(cr.Spec.ForProvider.Owner.Type),
-					ID:   cr.Spec.ForProvider.Owner.ID,
+					ID:   id,
 				},
 			},
 		},
@@ -174,7 +198,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotToken)
 	}
 
-	_, err := c.service.Update(ctx, &tokens.TokenUpdateParameters{
+	_, err := c.tokens.Update(ctx, &tokens.TokenUpdateParameters{
 		Attributes: tokens.TokenAttributes{
 			Name: cr.Spec.ForProvider.Name,
 		},
@@ -191,5 +215,5 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot parse external name as UUID")
 	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.service.Delete(ctx, uid)), "failed to delete token")
+	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
 }

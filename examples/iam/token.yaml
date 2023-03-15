@@ -1,0 +1,13 @@
+apiVersion: iam.upbound.io/v1alpha1
+kind: Token
+metadata:
+  name: muvaftoken
+spec:
+  forProvider:
+    name: muvaftoken
+    owner:
+      type: users
+      name: muvaf
+  writeConnectionSecretToRef:
+    name: up-token
+    namespace: crossplane-system

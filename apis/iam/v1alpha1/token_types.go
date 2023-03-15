@@ -32,9 +32,14 @@ type Owner struct {
 	// +kubebuilder:validation:Enum=users;controlPlanes;robots
 	Type string `json:"type"`
 
-	// ID of the owner. It might be UUID or integer.
+	// ID of the owner. It can be UUID or integer. Takes precedence over Name
+	// field.
 	// +kubebuilder:validation:Required
-	ID string `json:"id"`
+	ID *string `json:"id,omitempty"`
+
+	// Name of the owner account. It is used to look up the ID of the owner
+	// before creation of the token.
+	Name *string `json:"name,omitempty"`
 }
 
 // TokenParameters are the configurable fields of a Token.

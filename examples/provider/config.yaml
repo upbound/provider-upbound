@@ -1,20 +1,11 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  namespace: crossplane-system
-  name: example-provider-secret
-type: Opaque
-data:
-  # credentials: BASE64ENCODED_PROVIDER_CREDS
----
-apiVersion: upbound.crossplane.io/v1alpha1
+apiVersion: upbound.io/v1alpha1
 kind: ProviderConfig
 metadata:
-  name: example
+  name: default
 spec:
   credentials:
     source: Secret
     secretRef:
       namespace: crossplane-system
-      name: example-provider-secret
-      key: credentials
+      name: up-creds
+      key: creds
