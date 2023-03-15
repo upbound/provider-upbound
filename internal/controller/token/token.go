@@ -19,10 +19,9 @@ package token
 import (
 	"context"
 	"fmt"
-	"github.com/upbound/up-sdk-go/service/accounts"
-	"k8s.io/utils/pointer"
 	"strconv"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -32,10 +31,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
+	"github.com/upbound/up-sdk-go/service/accounts"
 	"github.com/upbound/up-sdk-go/service/tokens"
 
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
@@ -48,7 +49,7 @@ const (
 	errNotToken     = "managed resource is not a Token custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 
-	errNewClient = "cannot create new Service"
+	errNewClient = "cannot create new client"
 )
 
 // Setup adds a controller that reconciles Token managed resources.
@@ -137,6 +138,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
 	}
+	cr.Status.SetConditions(v1.Available())
 	return managed.ExternalObservation{
 		ResourceExists:   true,
 		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.Name,
