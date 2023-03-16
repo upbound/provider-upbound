@@ -30,9 +30,9 @@ type ProviderConfigSpec struct {
 	// Credentials required to authenticate to this provider.
 	Credentials ProviderCredentials `json:"credentials"`
 
-	// Upbound API endpoint.
-	// Defaults to https://api.upbound.io
-	APIEndpoint *string `json:"apiEndpoint,omitempty"`
+	// Upbound endpoint.
+	// Defaults to https://upbound.io
+	Endpoint *string `json:"endpoint,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.

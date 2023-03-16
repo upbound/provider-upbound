@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -63,22 +64,29 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	if len(profile.Session) == 0 {
 		return nil, errors.New("no session found")
 	}
-	endpoint := DefaultAPIEndpoint
-	if pc.Spec.APIEndpoint != nil {
-		endpoint, err = url.Parse(*pc.Spec.APIEndpoint)
+	apiEndpoint := DefaultAPIEndpoint
+	if pc.Spec.Endpoint != nil {
+		// NOTE(muvaf): We expect full endpoint instead of `api.upbound.io`
+		// because 10/10 times I gave the wrong input, and it was hard to debug.
+		endpoint, err := url.Parse(*pc.Spec.Endpoint)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot parse endpoint %s", *pc.Spec.APIEndpoint)
+			return nil, errors.Wrapf(err, "cannot parse apiEndpoint %s", *pc.Spec.Endpoint)
+		}
+		a := fmt.Sprintf("%s://api.%s", endpoint.Scheme, endpoint.Host)
+		apiEndpoint, err = url.Parse(a)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot parse constructed api endpoint %s", a)
 		}
 	}
 	cj, _ := cookiejar.New(nil)
-	cj.SetCookies(endpoint, []*http.Cookie{
+	cj.SetCookies(apiEndpoint, []*http.Cookie{
 		{
 			Name:  CookieName,
 			Value: profile.Session,
 		},
 	})
 	cl := up.NewClient(func(u *up.HTTPClient) {
-		u.BaseURL = endpoint
+		u.BaseURL = apiEndpoint
 		u.HTTP = &http.Client{
 			Jar: cj,
 		}
