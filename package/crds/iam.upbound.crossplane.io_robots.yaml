@@ -5,18 +5,18 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: tokens.iam.upbound.io
+  name: robots.iam.upbound.crossplane.io
 spec:
-  group: iam.upbound.io
+  group: iam.upbound.crossplane.io
   names:
     categories:
     - crossplane
     - managed
     - upbound
-    kind: Token
-    listKind: TokenList
-    plural: tokens
-    singular: token
+    kind: Robot
+    listKind: RobotList
+    plural: robots
+    singular: robot
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -35,8 +35,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A Token is an Upbound token that can be used to access Upbound
-          services.
+        description: A Robot is an example API type.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -51,7 +50,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A TokenSpec defines the desired state of a Token.
+            description: A RobotSpec defines the desired state of a Robot.
             properties:
               deletionPolicy:
                 default: Delete
@@ -63,36 +62,30 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: TokenParameters are the configurable fields of a Token.
+                description: RobotParameters are the configurable fields of a Robot.
                 properties:
-                  name:
-                    description: Name of the Token. This is different from the ID
-                      which is assigned by the Upbound API.
+                  description:
+                    description: Description for this Robot.
                     type: string
-                  owner:
-                    description: Owner of the Token.
+                  name:
+                    description: Name of this Robot.
+                    type: string
+                  organization:
+                    description: Organization that owns this robot.
                     properties:
                       id:
-                        description: ID of the owner. It can be UUID or integer. Takes
-                          precedence over Name field.
+                        description: ID of the organization that owns this robot.
+                          Takes precedence over name. Either name or id is required.
                         type: string
                       name:
-                        description: Name of the owner account. It is used to look
-                          up the ID of the owner before creation of the token.
+                        description: Name of the organization that owns this robot.
+                          Either name or id is required. It is used to look up the
+                          ID of the organization. Id field takes precedence.
                         type: string
-                      type:
-                        description: Type of the owner account, like user or organization.
-                        enum:
-                        - users
-                        - controlPlanes
-                        - robots
-                        type: string
-                    required:
-                    - type
                     type: object
                 required:
                 - name
-                - owner
+                - organization
                 type: object
               providerConfigRef:
                 default:
@@ -266,10 +259,15 @@ spec:
             - forProvider
             type: object
           status:
-            description: A TokenStatus represents the observed state of a Token.
+            description: A RobotStatus represents the observed state of a Robot.
             properties:
               atProvider:
-                description: TokenObservation are the observable fields of a Token.
+                description: RobotObservation are the observable fields of a Robot.
+                properties:
+                  id:
+                    type: string
+                required:
+                - id
                 type: object
               conditions:
                 description: Conditions of the resource.

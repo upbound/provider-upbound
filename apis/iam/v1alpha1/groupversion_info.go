@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains the v1alpha1 group Sample resources of the Upbound provider.
 // +kubebuilder:object:generate=true
-// +groupName=iam.upbound.io
+// +groupName=iam.upbound.crossplane.io
 // +versionName=v1alpha1
 package v1alpha1
 
@@ -27,7 +27,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "iam.upbound.io"
+	Group   = "iam.upbound.crossplane.io"
 	Version = "v1alpha1"
 )
 
