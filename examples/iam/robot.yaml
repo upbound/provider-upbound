@@ -1,0 +1,9 @@
+apiVersion: iam.upbound.io/v1alpha1
+kind: Robot
+metadata:
+  name: myrobot
+spec:
+  forProvider:
+    name: myrobot
+    organization:
+      name: some-org

@@ -40,12 +40,15 @@ type RobotOwner struct {
 // RobotParameters are the configurable fields of a Robot.
 type RobotParameters struct {
 	// Name of this Robot.
+	// +kubebuilder:validation:Required
 	Name string `json:"name"`
 
 	// Description for this Robot.
-	Description *string `json:"description,omitempty"`
+	// +kubebuilder:validation:Required
+	Description string `json:"description"`
 
 	// Organization that owns this robot.
+	// +kubebuilder:validation:Required
 	Organization RobotOwner `json:"organization"`
 }
 

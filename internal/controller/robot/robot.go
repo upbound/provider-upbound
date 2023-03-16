@@ -68,6 +68,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		managed.WithInitializers(),
 		managed.WithConnectionPublishers(cps...))
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -90,7 +91,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Token)
+	cr, ok := mg.(*v1alpha1.Robot)
 	if !ok {
 		return nil, errors.New(errNotRobot)
 	}
@@ -160,10 +161,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		id = strconv.Itoa(int(o))
 	}
 
-	_, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
+	resp, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
 		Attributes: robots.RobotAttributes{
 			Name:        cr.Spec.ForProvider.Name,
-			Description: pointer.StringDeref(cr.Spec.ForProvider.Description, ""),
+			Description: cr.Spec.ForProvider.Description,
 		},
 		Relationships: robots.RobotRelationships{
 			Owner: robots.RobotOwner{
@@ -174,7 +175,11 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			},
 		},
 	})
-	return managed.ExternalCreation{}, errors.Wrap(err, "cannot create robot")
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create robot")
+	}
+	meta.SetExternalName(cr, resp.ID.String())
+	return managed.ExternalCreation{}, nil
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
