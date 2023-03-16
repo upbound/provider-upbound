@@ -30,12 +30,23 @@ type Owner struct {
 	// Type of the owner account, like user or organization.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=users;controlPlanes;robots
+	// +immutable
 	Type string `json:"type"`
 
 	// ID of the owner. It can be UUID or integer. Takes precedence over Name
 	// field.
-	// +kubebuilder:validation:Required
+	// +immutable
 	ID *string `json:"id,omitempty"`
+
+	// IDRef references a Robot, User or a ControlPlane, depending on value of
+	// Type field, to retrieve its ID.
+	// +optional
+	IDRef *xpv1.Reference `json:"idRef,omitempty"`
+
+	// IDSelector selects a reference to a Robot, User or a ControlPlane,
+	//  depending on value of Type field, to retrieve its ID.
+	// +optional
+	IDSelector *xpv1.Selector `json:"idSelector,omitempty"`
 
 	// Name of the owner account. It is used to look up the ID of the owner
 	// before creation of the token.
