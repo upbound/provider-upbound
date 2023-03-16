@@ -88,8 +88,8 @@ func (in *ProviderConfigList) DeepCopyObject() runtime.Object {
 func (in *ProviderConfigSpec) DeepCopyInto(out *ProviderConfigSpec) {
 	*out = *in
 	in.Credentials.DeepCopyInto(&out.Credentials)
-	if in.APIEndpoint != nil {
-		in, out := &in.APIEndpoint, &out.APIEndpoint
+	if in.Endpoint != nil {
+		in, out := &in.Endpoint, &out.Endpoint
 		*out = new(string)
 		**out = **in
 	}

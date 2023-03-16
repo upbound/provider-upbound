@@ -22,6 +22,7 @@ import (
 
 	"github.com/upbound/provider-upbound/internal/controller/config"
 	"github.com/upbound/provider-upbound/internal/controller/robot"
+	"github.com/upbound/provider-upbound/internal/controller/team"
 	"github.com/upbound/provider-upbound/internal/controller/token"
 )
 
@@ -32,6 +33,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		config.Setup,
 		token.Setup,
 		robot.Setup,
+		team.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

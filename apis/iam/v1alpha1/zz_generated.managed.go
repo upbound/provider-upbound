@@ -85,6 +85,72 @@ func (mg *Robot) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }
 
+// GetCondition of this Team.
+func (mg *Team) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return mg.Status.GetCondition(ct)
+}
+
+// GetDeletionPolicy of this Team.
+func (mg *Team) GetDeletionPolicy() xpv1.DeletionPolicy {
+	return mg.Spec.DeletionPolicy
+}
+
+// GetProviderConfigReference of this Team.
+func (mg *Team) GetProviderConfigReference() *xpv1.Reference {
+	return mg.Spec.ProviderConfigReference
+}
+
+/*
+GetProviderReference of this Team.
+Deprecated: Use GetProviderConfigReference.
+*/
+func (mg *Team) GetProviderReference() *xpv1.Reference {
+	return mg.Spec.ProviderReference
+}
+
+// GetPublishConnectionDetailsTo of this Team.
+func (mg *Team) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	return mg.Spec.PublishConnectionDetailsTo
+}
+
+// GetWriteConnectionSecretToReference of this Team.
+func (mg *Team) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+	return mg.Spec.WriteConnectionSecretToReference
+}
+
+// SetConditions of this Team.
+func (mg *Team) SetConditions(c ...xpv1.Condition) {
+	mg.Status.SetConditions(c...)
+}
+
+// SetDeletionPolicy of this Team.
+func (mg *Team) SetDeletionPolicy(r xpv1.DeletionPolicy) {
+	mg.Spec.DeletionPolicy = r
+}
+
+// SetProviderConfigReference of this Team.
+func (mg *Team) SetProviderConfigReference(r *xpv1.Reference) {
+	mg.Spec.ProviderConfigReference = r
+}
+
+/*
+SetProviderReference of this Team.
+Deprecated: Use SetProviderConfigReference.
+*/
+func (mg *Team) SetProviderReference(r *xpv1.Reference) {
+	mg.Spec.ProviderReference = r
+}
+
+// SetPublishConnectionDetailsTo of this Team.
+func (mg *Team) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {
+	mg.Spec.PublishConnectionDetailsTo = r
+}
+
+// SetWriteConnectionSecretToReference of this Team.
+func (mg *Team) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
+	mg.Spec.WriteConnectionSecretToReference = r
+}
+
 // GetCondition of this Token.
 func (mg *Token) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return mg.Status.GetCondition(ct)
