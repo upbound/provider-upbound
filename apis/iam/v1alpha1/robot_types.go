@@ -47,9 +47,9 @@ type RobotParameters struct {
 	// +kubebuilder:validation:Required
 	Description string `json:"description"`
 
-	// Organization that owns this robot.
+	// Owner that owns this robot.
 	// +kubebuilder:validation:Required
-	Organization RobotOwner `json:"organization"`
+	Owner RobotOwner `json:"owner"`
 }
 
 // RobotObservation are the observable fields of a Robot.

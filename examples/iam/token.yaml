@@ -6,7 +6,7 @@ spec:
   forProvider:
     name: mytoken
     owner:
-      type: users
+      type: robots
       name: myuser
   writeConnectionSecretToRef:
     name: up-token

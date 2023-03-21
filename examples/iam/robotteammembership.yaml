@@ -1,0 +1,10 @@
+apiVersion: iam.upbound.io/v1alpha1
+kind: RobotTeamMembership
+metadata:
+  name: teammember
+spec:
+  forProvider:
+    robotIdRef:
+      name: myrobot
+    teamIdRef:
+      name: myteam

@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package robot
+package robotteammembership
 
 import (
 	"context"
-	"strconv"
-
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -28,15 +26,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/upbound/provider-upbound/internal/client/robotteammembership"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/organizations"
-	"github.com/upbound/up-sdk-go/service/robots"
 
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
@@ -45,15 +42,15 @@ import (
 )
 
 const (
-	errNotRobot     = "managed resource is not a Robot custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
+	errNotRobotTeamMembership = "managed resource is not a RobotTeamMembership custom resource"
+	errTrackPCUsage           = "cannot track ProviderConfig usage"
 
 	errNewClient = "cannot create new Service"
 )
 
-// Setup adds a controller that reconciles Robot managed resources.
+// Setup adds a controller that reconciles RobotTeamMembership managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.RobotGroupKind)
+	name := managed.ControllerName(v1alpha1.RobotTeamMembershipGroupKind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
@@ -61,7 +58,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.RobotGroupVersionKind),
+		resource.ManagedKind(v1alpha1.RobotTeamMembershipGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:  mgr.GetClient(),
 			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
@@ -74,7 +71,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.Robot{}).
+		For(&v1alpha1.RobotTeamMembership{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -91,9 +88,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.RobotTeamMembership)
 	if !ok {
-		return nil, errors.New(errNotRobot)
+		return nil, errors.New(errNotRobotTeamMembership)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -106,37 +103,32 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		robots:        robots.NewClient(cfg),
-		organizations: organizations.NewClient(cfg),
+		robotTeamMemberships: robotteammembership.NewClient(cfg),
 	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	robots        *robots.Client
-	organizations *organizations.Client
+	robotTeamMemberships *robotteammembership.Client
+	organizations        *organizations.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.RobotTeamMembership)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotRobot)
+		return managed.ExternalObservation{}, errors.New(errNotRobotTeamMembership)
 	}
 
 	if meta.GetExternalName(cr) == "" {
 		return managed.ExternalObservation{}, nil
 	}
-	id, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, "cannot parse external name as a uuid")
-	}
-	resp, err := c.robots.Get(ctx, id)
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot")
+	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
+	rid := pointer.StringDeref(cr.Spec.ForProvider.RobotID, "")
+	if err := c.robotTeamMemberships.Get(ctx, rid, tid); err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot team ids")
 	}
 	cr.Status.SetConditions(v1.Available())
-	cr.Status.AtProvider.ID = resp.ID.String()
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
@@ -145,57 +137,33 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.RobotTeamMembership)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotRobot)
+		return managed.ExternalCreation{}, errors.New(errNotRobotTeamMembership)
 	}
-	id := pointer.StringDeref(cr.Spec.ForProvider.Organization.ID, "")
-	if id == "" {
-		if cr.Spec.ForProvider.Organization.Name == nil {
-			return managed.ExternalCreation{}, errors.New("organization name or id must be specified")
-		}
-		o, err := c.organizations.GetOrgID(ctx, *cr.Spec.ForProvider.Organization.Name)
-		if err != nil {
-			return managed.ExternalCreation{}, errors.Wrap(err, "cannot get organization id")
-		}
-		id = strconv.Itoa(int(o))
+	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
+	if err := c.robotTeamMemberships.Create(ctx, meta.GetExternalName(cr), &robotteammembership.CreateParameters{
+		ID:   tid,
+		Type: robotteammembership.RobotScopeTypeTeam,
+	}); err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create team membership for the robot")
 	}
-
-	resp, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
-		Attributes: robots.RobotAttributes{
-			Name:        cr.Spec.ForProvider.Name,
-			Description: cr.Spec.ForProvider.Description,
-		},
-		Relationships: robots.RobotRelationships{
-			Owner: robots.RobotOwner{
-				Data: robots.RobotOwnerData{
-					Type: robots.RobotOwnerOrganization,
-					ID:   id,
-				},
-			},
-		},
-	})
-	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create robot")
-	}
-	meta.SetExternalName(cr, resp.ID.String())
 	return managed.ExternalCreation{}, nil
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
-	// There is no Update endpoints in robots API.
+	// There is no Update endpoints in robotTeamMemberships API.
 	return managed.ExternalUpdate{}, nil
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.RobotTeamMembership)
 	if !ok {
-		return errors.New(errNotRobot)
+		return errors.New(errNotRobotTeamMembership)
 	}
-
-	id, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return errors.Wrap(err, "cannot parse external name as a uuid")
-	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.robots.Delete(ctx, id)), "cannot delete robot")
+	err := c.robotTeamMemberships.Delete(ctx, pointer.StringDeref(cr.Spec.ForProvider.RobotID, ""), &robotteammembership.DeleteParameters{
+		ID:   pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		Type: robotteammembership.RobotScopeTypeTeam,
+	})
+	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete robot team membership")
 }

@@ -5,5 +5,5 @@ metadata:
 spec:
   forProvider:
     name: myrobot
-    organization:
-      name: some-org
+    owner:
+      name: myorg

@@ -153,10 +153,6 @@ spec:
                                 type: string
                             type: object
                         type: object
-                      name:
-                        description: Name of the owner account. It is used to look
-                          up the ID of the owner before creation of the token.
-                        type: string
                       type:
                         description: Type of the owner account, like user or organization.
                         enum:

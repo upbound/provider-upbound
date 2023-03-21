@@ -44,13 +44,9 @@ type Owner struct {
 	IDRef *xpv1.Reference `json:"idRef,omitempty"`
 
 	// IDSelector selects a reference to a Robot, User or a ControlPlane,
-	//  depending on value of Type field, to retrieve its ID.
+	// depending on value of Type field, to retrieve its ID.
 	// +optional
 	IDSelector *xpv1.Selector `json:"idSelector,omitempty"`
-
-	// Name of the owner account. It is used to look up the ID of the owner
-	// before creation of the token.
-	Name *string `json:"name,omitempty"`
 }
 
 // TokenParameters are the configurable fields of a Token.
