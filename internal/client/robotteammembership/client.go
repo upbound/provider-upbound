@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	basePathFmt = "v1/robots/%s/relationships/teams"
+	basePathFmt = "v2/robots/%s/relationships/teams"
 )
 
 func NewClient(cfg *up.Config) *Client {
@@ -52,19 +52,37 @@ func (c *Client) Get(ctx context.Context, robotId, teamId string) error {
 	}
 	resp, err := c.robotClient.Get(ctx, rid)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get robot with id %s", robotId)
+		return err
 	}
-	teams := resp.DataSet.RelationshipSet["teams"].([]string)
-	for _, team := range teams {
-		if team == teamId {
+
+	teams, ok := resp.DataSet.RelationshipSet["teams"].(map[string]any)
+	if !ok {
+		return &uperrors.Error{Status: http.StatusNotFound}
+	}
+	data, ok := teams["data"].([]any)
+	if !ok {
+		return &uperrors.Error{Status: http.StatusNotFound}
+	}
+	for _, d := range data {
+		team, ok := d.(map[string]any)
+		if !ok {
+			return &uperrors.Error{Status: http.StatusNotFound}
+		}
+		id, ok := team["id"].(string)
+		if !ok {
+			return &uperrors.Error{Status: http.StatusNotFound}
+		}
+		if id == teamId {
 			return nil
 		}
 	}
 	return &uperrors.Error{Status: http.StatusNotFound}
 }
 
-func (c *Client) Create(ctx context.Context, robotId string, params *CreateParameters) error {
-	req, err := c.Client.NewRequest(ctx, http.MethodPost, fmt.Sprintf(basePathFmt, robotId), "", params)
+func (c *Client) Create(ctx context.Context, robotId string, params *ResourceIdentifier) error {
+	req, err := c.Client.NewRequest(ctx, http.MethodPost, fmt.Sprintf(basePathFmt, robotId), "", &RelationshipList{
+		Data: []ResourceIdentifier{*params},
+	})
 	if err != nil {
 		return err
 	}

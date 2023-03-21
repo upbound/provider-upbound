@@ -18,27 +18,25 @@ package robotteammembership
 
 import (
 	"context"
+
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
-	"github.com/upbound/provider-upbound/internal/client/robotteammembership"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	uperrors "github.com/upbound/up-sdk-go/errors"
-	"github.com/upbound/up-sdk-go/service/organizations"
-
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
+	"github.com/upbound/provider-upbound/internal/client/robotteammembership"
 	"github.com/upbound/provider-upbound/internal/controller/features"
+	uperrors "github.com/upbound/up-sdk-go/errors"
 )
 
 const (
@@ -111,7 +109,6 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
 	robotTeamMemberships *robotteammembership.Client
-	organizations        *organizations.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -120,9 +117,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotRobotTeamMembership)
 	}
 
-	if meta.GetExternalName(cr) == "" {
-		return managed.ExternalObservation{}, nil
-	}
+	// NOTE(muvaf): External name annotation is not used since this is an attribute
+	// that binds to resources and the id of both are already under spec.
+
 	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
 	rid := pointer.StringDeref(cr.Spec.ForProvider.RobotID, "")
 	if err := c.robotTeamMemberships.Get(ctx, rid, tid); err != nil {
@@ -142,9 +139,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotRobotTeamMembership)
 	}
 	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
-	if err := c.robotTeamMemberships.Create(ctx, meta.GetExternalName(cr), &robotteammembership.CreateParameters{
+	rid := pointer.StringDeref(cr.Spec.ForProvider.RobotID, "")
+	if err := c.robotTeamMemberships.Create(ctx, rid, &robotteammembership.ResourceIdentifier{
 		ID:   tid,
-		Type: robotteammembership.RobotScopeTypeTeam,
+		Type: robotteammembership.RobotMembershipTypeTeam,
 	}); err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create team membership for the robot")
 	}
@@ -163,7 +161,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	}
 	err := c.robotTeamMemberships.Delete(ctx, pointer.StringDeref(cr.Spec.ForProvider.RobotID, ""), &robotteammembership.DeleteParameters{
 		ID:   pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
-		Type: robotteammembership.RobotScopeTypeTeam,
+		Type: robotteammembership.RobotMembershipTypeTeam,
 	})
 	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete robot team membership")
 }

@@ -19,6 +19,7 @@ package token
 import (
 	"context"
 	"fmt"
+
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -29,13 +30,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/upbound/up-sdk-go/service/robots"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/accounts"
+	"github.com/upbound/up-sdk-go/service/robots"
 	"github.com/upbound/up-sdk-go/service/tokens"
 
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"

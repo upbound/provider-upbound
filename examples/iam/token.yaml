@@ -7,7 +7,8 @@ spec:
     name: mytoken
     owner:
       type: robots
-      name: myuser
+      idRef:
+        name: myrobot
   writeConnectionSecretToRef:
     name: up-token
     namespace: crossplane-system
