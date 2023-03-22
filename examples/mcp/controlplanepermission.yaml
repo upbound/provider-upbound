@@ -1,0 +1,11 @@
+apiVersion: mcp.upbound.io/v1alpha1
+kind: ControlPlanePermission
+metadata:
+  name: editorperm
+spec:
+  forProvider:
+    organizationName: myorg
+    teamIdRef:
+      name: myteam
+    controlPlaneName: mycp
+    permission: editor

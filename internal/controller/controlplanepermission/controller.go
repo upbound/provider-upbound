@@ -27,16 +27,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	uperrors "github.com/upbound/up-sdk-go/errors"
 
 	"github.com/upbound/provider-upbound/apis/mcp/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/controlplanepermission"
 	"github.com/upbound/provider-upbound/internal/controller/features"
-	uperrors "github.com/upbound/up-sdk-go/errors"
 )
 
 const (
@@ -128,6 +130,17 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrapf(resource.Ignore(uperrors.IsNotFound, err), "cannot get control plane permissions of team %s in org %s", params.TeamID, cr.Spec.ForProvider.OrganizationName)
 	}
+	if resp.CreatedAt != nil {
+		created := metav1.NewTime(*resp.CreatedAt)
+		cr.Status.AtProvider.CreatedAt = &created
+	}
+	if resp.UpdatedAt != nil {
+		updated := metav1.NewTime(*resp.UpdatedAt)
+		cr.Status.AtProvider.UpdatedAt = &updated
+	}
+	cr.Status.AtProvider.CreatorID = resp.CreatorID
+	cr.Status.AtProvider.AccountID = resp.AccountID
+
 	if resp.Privilege != cr.Spec.ForProvider.Permission {
 		return managed.ExternalObservation{
 			ResourceExists:   true,

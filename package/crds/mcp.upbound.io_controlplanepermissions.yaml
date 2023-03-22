@@ -344,6 +344,25 @@ spec:
               atProvider:
                 description: ControlPlanePermissionObservation are the observable
                   fields of a ControlPlanePermission.
+                properties:
+                  accountId:
+                    description: AccountID is the ID of the account that the team
+                      belongs to, i.e. organization account.
+                    type: integer
+                  createdAt:
+                    description: CreatedAt is the time the control plane permission
+                      was created.
+                    format: date-time
+                    type: string
+                  creatorId:
+                    description: CreatorID is the ID of the user that created the
+                      control plane permission.
+                    type: integer
+                  updatedAt:
+                    description: UpdatedAt is the time the control plane permission
+                      was last updated.
+                    format: date-time
+                    type: string
                 type: object
               conditions:
                 description: Conditions of the resource.

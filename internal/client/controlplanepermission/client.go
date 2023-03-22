@@ -63,7 +63,7 @@ func (c *Client) Get(ctx context.Context, params *GetParameters) (*PermissionRes
 }
 
 func (c *Client) Apply(ctx context.Context, params *ApplyParameters) error {
-	req, err := c.Client.NewRequest(ctx, http.MethodPost, fmt.Sprintf(basePathFmt, params.AccountName, params.TeamID), params.ControlPlaneName, params)
+	req, err := c.Client.NewRequest(ctx, http.MethodPut, fmt.Sprintf(basePathFmt, params.AccountName, params.TeamID), params.ControlPlaneName, params)
 	if err != nil {
 		return err
 	}

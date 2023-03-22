@@ -55,7 +55,20 @@ type ControlPlanePermissionParameters struct {
 }
 
 // ControlPlanePermissionObservation are the observable fields of a ControlPlanePermission.
-type ControlPlanePermissionObservation struct{}
+type ControlPlanePermissionObservation struct {
+	// CreatedAt is the time the control plane permission was created.
+	CreatedAt *metav1.Time `json:"createdAt,omitempty"`
+
+	// UpdatedAt is the time the control plane permission was last updated.
+	UpdatedAt *metav1.Time `json:"updatedAt,omitempty"`
+
+	// AccountID is the ID of the account that the team belongs to, i.e.
+	// organization account.
+	AccountID uint `json:"accountId,omitempty"`
+
+	// CreatorID is the ID of the user that created the control plane permission.
+	CreatorID uint `json:"creatorId,omitempty"`
+}
 
 // A ControlPlanePermissionSpec defines the desired state of a ControlPlanePermission.
 type ControlPlanePermissionSpec struct {
