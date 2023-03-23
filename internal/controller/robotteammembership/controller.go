@@ -31,12 +31,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	uperrors "github.com/upbound/up-sdk-go/errors"
+
 	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/robotteammembership"
 	"github.com/upbound/provider-upbound/internal/controller/features"
-	uperrors "github.com/upbound/up-sdk-go/errors"
 )
 
 const (

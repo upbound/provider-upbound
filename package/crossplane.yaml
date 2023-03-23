@@ -3,12 +3,13 @@ kind: Provider
 metadata:
   name: provider-upbound
   annotations:
-    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
+    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
     meta.crossplane.io/source: github.com/upbound/provider-upbound
-    meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      A upbound that can be used to create Crossplane providers.
-
-spec:
-  controller:
-    image: DOCKER_REGISTRY/provider-upbound-controller:VERSION
+      Upbound's official Crossplane provider to manage Upbound Cloud resources
+      in Kubernetes.
+    meta.crossplane.io/readme: |
+      Provider Upbound is a Crossplane provider for [Upbound](https://upbound.io)
+      developed and supported by Upbound. If you encounter an issue please reach
+      out on our support@upbound.io email address.
+    friendly-name.meta.crossplane.io: Provider Upbound

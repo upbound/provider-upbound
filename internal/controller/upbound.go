@@ -18,12 +18,12 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/upbound/provider-upbound/internal/controller/controlplanepermission"
-	"github.com/upbound/provider-upbound/internal/controller/robotteammembership"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/upbound/provider-upbound/internal/controller/config"
+	"github.com/upbound/provider-upbound/internal/controller/controlplanepermission"
 	"github.com/upbound/provider-upbound/internal/controller/robot"
+	"github.com/upbound/provider-upbound/internal/controller/robotteammembership"
 	"github.com/upbound/provider-upbound/internal/controller/team"
 	"github.com/upbound/provider-upbound/internal/controller/token"
 )

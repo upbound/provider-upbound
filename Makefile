@@ -6,10 +6,14 @@ PROJECT_REPO := github.com/upbound/$(PROJECT_NAME)
 PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
 
+# ====================================================================================
 # Setup Output
+
 -include build/makelib/output.mk
 
+# ====================================================================================
 # Setup Go
+
 NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
@@ -18,17 +22,32 @@ GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
 -include build/makelib/golang.mk
 
-# kind-related versions
-KIND_VERSION ?= v0.12.0
-KIND_NODE_IMAGE_TAG ?= v1.23.4
-
+# ====================================================================================
 # Setup Kubernetes tools
+
+UP_VERSION = v0.15.0
+UP_CHANNEL = stable
 -include build/makelib/k8s_tools.mk
 
+# ====================================================================================
 # Setup Images
-DOCKER_REGISTRY ?= crossplane
-IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
--include build/makelib/image.mk
+
+IMAGES = provider-upbound
+-include build/makelib/imagelight.mk
+
+# ====================================================================================
+# Setup XPKG
+
+XPKG_REG_ORGS ?= xpkg.upbound.io/upbound
+# NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
+# inferred.
+XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/upbound
+XPKGS = provider-upbound
+-include build/makelib/xpkg.mk
+
+# NOTE(hasheddan): we force image building to happen prior to xpkg build so that
+# we ensure image is present in daemon.
+xpkg.build.provider-upbound: do.build.images
 
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
@@ -57,6 +76,11 @@ submodules:
 go.cachedir:
 	@go env GOCACHE
 
+# NOTE(hasheddan): we must ensure up is installed in tool cache prior to build
+# as including the k8s_tools machinery prior to the xpkg machinery sets UP to
+# point to tool cache.
+build.init: $(UP)
+
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,
 # try running the binary directly with different arguments.
@@ -81,46 +105,6 @@ dev-clean: $(KIND) $(KUBECTL)
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
 .PHONY: submodules fallthrough test-integration run dev dev-clean
-
-# ====================================================================================
-# Special Targets
-
-# Install gomplate
-GOMPLATE_VERSION := 3.10.0
-GOMPLATE := $(TOOLS_HOST_DIR)/gomplate-$(GOMPLATE_VERSION)
-
-$(GOMPLATE):
-	@$(INFO) installing gomplate $(SAFEHOSTPLATFORM)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -fsSLo $(GOMPLATE) https://github.com/hairyhenderson/gomplate/releases/download/v$(GOMPLATE_VERSION)/gomplate_$(SAFEHOSTPLATFORM) || $(FAIL)
-	@chmod +x $(GOMPLATE)
-	@$(OK) installing gomplate $(SAFEHOSTPLATFORM)
-
-export GOMPLATE
-
-# This target prepares repo for your provider by replacing all "upbound"
-# occurrences with your provider name.
-# This target can only be run once, if you want to rerun for some reason,
-# consider stashing/resetting your git state.
-# Arguments:
-#   provider: Camel case name of your provider, e.g. GitHub, PlanetScale
-provider.prepare:
-	@[ "${provider}" ] || ( echo "argument \"provider\" is not set"; exit 1 )
-	@PROVIDER=$(provider) ./hack/helpers/prepare.sh
-
-# This target adds a new api type and its controller.
-# You would still need to register new api in "apis/<provider>.go" and
-# controller in "internal/controller/<provider>.go".
-# Arguments:
-#   provider: Camel case name of your provider, e.g. GitHub, PlanetScale
-#   group: API group for the type you want to add.
-#   kind: Kind of the type you want to add
-#	apiversion: API version of the type you want to add. Optional and defaults to "v1alpha1"
-provider.addtype: $(GOMPLATE)
-	@[ "${provider}" ] || ( echo "argument \"provider\" is not set"; exit 1 )
-	@[ "${group}" ] || ( echo "argument \"group\" is not set"; exit 1 )
-	@[ "${kind}" ] || ( echo "argument \"kind\" is not set"; exit 1 )
-	@PROVIDER=$(provider) GROUP=$(group) KIND=$(kind) APIVERSION=$(apiversion) ./hack/helpers/addtype.sh
 
 define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
