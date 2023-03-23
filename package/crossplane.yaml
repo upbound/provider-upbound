@@ -6,8 +6,7 @@ metadata:
     meta.crossplane.io/maintainer: Upbound <support@upbound.io>
     meta.crossplane.io/source: github.com/upbound/provider-upbound
     meta.crossplane.io/description: |
-      Upbound's official Crossplane provider to manage Upbound Cloud resources
-      in Kubernetes.
+      Upbound's official Crossplane provider to manage Upbound services in Kubernetes.
     meta.crossplane.io/readme: |
       Provider Upbound is a Crossplane provider for [Upbound](https://upbound.io)
       developed and supported by Upbound. If you encounter an issue please reach

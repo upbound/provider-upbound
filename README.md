@@ -7,7 +7,7 @@
 </div>
 
 Provider Upbound is a [Crossplane](https://crossplane.io/) provider that exposes
-XRM-conformant managed resources for [Upbound Cloud](https://upbound.io).
+XRM-conformant managed resources for [Upbound](https://upbound.io) services.
 
 ## Getting Started
 
