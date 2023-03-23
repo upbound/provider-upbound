@@ -124,15 +124,6 @@ jobs:
         if: failure() && steps.check-diff.outcome == 'failure'
         run: git diff
 
-      - name: Report Statistics
-        run: head -1 _output/skipped_resources.csv
-
-      - name: Publish skipped resources CSV to Github
-        uses: actions/upload-artifact@v3
-        with:
-          name: skipped_resources
-          path: _output/skipped_resources.csv
-
   unit-tests:
     runs-on: ubuntu-22.04
     needs: detect-noop
