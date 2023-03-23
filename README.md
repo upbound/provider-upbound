@@ -1,35 +1,33 @@
-# provider-upbound
+# Provider Upbound
 
-`provider-upbound` is a minimal [Crossplane](https://crossplane.io/) Provider
-that is meant to be used as a upbound for implementing new Providers. It comes
-with the following features that are meant to be refactored:
+<div align="center">
 
-- A `ProviderConfig` type that only points to a credentials `Secret`.
-- A `MyType` resource type that serves as an example managed resource.
-- A managed resource controller that reconciles `MyType` objects and simply
-  prints their configuration in its `Observe` method.
+![CI](https://github.com/upbound/provider-upbound/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/upbound/provider-upbound/all.svg?style=flat-square)](https://github.com/upbound/provider-upbound/releases) [![Go Report Card](https://goreportcard.com/badge/github.com/upbound/provider-upbound)](https://goreportcard.com/report/github.com/upbound/provider-upbound) [![Slack](https://slack.crossplane.io/badge.svg)](https://crossplane.slack.com/archives/C01TRKD4623) [![Twitter Follow](https://img.shields.io/twitter/follow/upbound_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=upbound_io&user_id=788180534543339520)
 
-## Developing
+</div>
 
-1. Use this repository as a upbound to create a new one.
-1. Run `make submodules` to initialize the "build" Make submodule we use for CI/CD.
-1. Rename the provider by running the follwing command:
-```
-  make provider.prepare provider={PascalProviderName}
-```
-4. Add your new type by running the following command:
-```
-make provider.addtype provider={PascalProviderName} group={group} kind={type}
-```
-5. Replace the *sample* group with your new group in apis/{provider}.go
-5. Replace the *mytype* type with your new type in internal/controller/{provider}.go
-5. Replace the default controller and ProviderConfig implementations with your own
-5. Run `make reviewable` to run code generation, linters, and tests.
-5. Run `make build` to build the provider.
+Provider Upbound is a [Crossplane](https://crossplane.io/) provider that exposes
+XRM-conformant managed resources for [Upbound Cloud](https://upbound.io).
 
-Refer to Crossplane's [CONTRIBUTING.md] file for more information on how the
-Crossplane community prefers to work. The [Provider Development][provider-dev]
-guide may also be of use.
+## Getting Started
 
-[CONTRIBUTING.md]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
-[provider-dev]: https://github.com/crossplane/crossplane/blob/master/docs/contributing/provider_development_guide.md
+Follow the quick start guide [here](https://marketplace.upbound.io/providers/upbound/provider-upbound/latest/docs/quickstart).
+
+You can find a detailed API reference with all CRDs and examples [here](https://marketplace.upbound.io/providers/upbound/provider-upbound/latest/crds).
+
+## Report a Bug
+
+For filing bugs, suggesting improvements, or requesting new features, please
+open an [issue](https://github.com/upbound/provider-upbound/issues).
+
+## Contact
+
+Please open a Github issue for all requests. If you need to reach out to Upbound,
+you can do so via the following channels:
+* Slack: [#upbound](https://crossplane.slack.com/archives/C01TRKD4623) channel in [Crossplane Slack](https://slack.crossplane.io)
+* Twitter: [@upbound_io](https://twitter.com/upbound_io)
+* Email: [support@upbound.io](mailto:support@upbound.io)
+
+## Licensing
+
+Provider AWS is under [the Apache 2.0 license](LICENSE).
