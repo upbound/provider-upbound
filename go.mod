@@ -7,8 +7,9 @@ require (
 	github.com/crossplane/crossplane-tools v0.0.0-20220901191540-806c0b01097b
 	github.com/google/uuid v1.1.2
 	github.com/pkg/errors v0.9.1
-	github.com/upbound/up-sdk-go v0.1.1-0.20230315183913-172efbd53056
+	github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	k8s.io/api v0.25.3
 	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.3
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
@@ -111,7 +112,6 @@ require (
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.25.3 // indirect
 	k8s.io/apiextensions-apiserver v0.25.0 // indirect
 	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect

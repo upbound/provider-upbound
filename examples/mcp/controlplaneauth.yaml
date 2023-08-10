@@ -1,0 +1,12 @@
+apiVersion: mcp.upbound.io/v1alpha1
+kind: ControlPlaneAuth
+metadata:
+  name: controlplane-a
+spec:
+  forProvider:
+    controlPlaneNameRef:
+      name: controlplane-a
+    organizationName: upbound
+  writeConnectionSecretToRef:
+    name: controlplane-a-kubeconfig
+    namespace: upbound-system

@@ -1,8 +1,8 @@
 apiVersion: iam.upbound.io/v1alpha1
 kind: Team
 metadata:
-  name: myteam
+  name: team-a
 spec:
   forProvider:
-    name: myteam
-    organizationName: myorg
+    name: team-a
+    organizationName: upbound

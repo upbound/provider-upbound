@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package team
+package controlplaneauth
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
@@ -27,31 +29,33 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/accounts"
+	"github.com/upbound/up-sdk-go/service/tokens"
 
-	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
-	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
-	"github.com/upbound/provider-upbound/internal/client/teams"
+	"github.com/upbound/provider-upbound/internal/client/controlplaneauth"
+
+	"github.com/upbound/provider-upbound/apis/mcp/v1alpha1"
+	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 	"github.com/upbound/provider-upbound/internal/controller/features"
 )
 
 const (
-	errNotTeam      = "managed resource is not a Team custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
+	errNotControlPlaneAuth = "managed resource is not a ControlPlaneAuth custom resource"
+	errTrackPCUsage        = "cannot track ProviderConfig usage"
 
-	errNewClient = "cannot create new client"
+	errNewClient = "cannot create new Service"
 )
 
-// Setup adds a controller that reconciles Team managed resources.
+// Setup adds a controller that reconciles ControlPlaneAuth managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.TeamGroupKind)
+	name := managed.ControllerName(v1alpha1.ControlPlaneAuthGroupKind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
@@ -59,20 +63,20 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.TeamGroupVersionKind),
+		resource.ManagedKind(v1alpha1.ControlPlaneAuthGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:  mgr.GetClient(),
 			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithInitializers(),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		managed.WithInitializers(),
 		managed.WithConnectionPublishers(cps...))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.Team{}).
+		For(&v1alpha1.ControlPlaneAuth{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -89,85 +93,108 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.ControlPlaneAuth)
 	if !ok {
-		return nil, errors.New(errNotTeam)
+		return nil, errors.New(errNotControlPlaneAuth)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	cfg, _, err := upclient.NewConfig(ctx, c.kube, cr)
+	cfg, profile, err := upclient.NewConfig(ctx, c.kube, cr)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
 	return &external{
-		teams:    teams.NewClient(cfg),
+		tokens:   tokens.NewClient(cfg),
 		accounts: accounts.NewClient(cfg),
+		profile:  profile,
+		kube:     c.kube,
 	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	teams    *teams.Client
+	kube     client.Client
 	accounts *accounts.Client
+	profile  upclient.Profile
+	tokens   *tokens.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.ControlPlaneAuth)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotTeam)
+		return managed.ExternalObservation{}, errors.New(errNotControlPlaneAuth)
 	}
 
 	if meta.GetExternalName(cr) == "" {
 		return managed.ExternalObservation{}, nil
 	}
-	_, err := c.teams.Get(ctx, meta.GetExternalName(cr))
+	uid, err := uuid.Parse(meta.GetExternalName(cr))
 	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get team")
+		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
 	}
+	resp, err := c.tokens.Get(ctx, uid)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
+	}
+
 	cr.Status.SetConditions(v1.Available())
+
 	return managed.ExternalObservation{
-		ResourceExists: true,
-		// Name is not returned in the API.
-		ResourceUpToDate: true,
+		ResourceExists:   true,
+		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.ControlPlaneName,
 	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.ControlPlaneAuth)
+	var kubeToken string
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotTeam)
+		return managed.ExternalCreation{}, errors.New(errNotControlPlaneAuth)
 	}
-	orgId := uint(pointer.IntDeref(cr.Spec.ForProvider.OrganizationID, 0))
-	if orgId == 0 {
-		if cr.Spec.ForProvider.OrganizationName == nil {
-			return managed.ExternalCreation{}, errors.New("either organizationName or organizationId must be specified")
-		}
-		o, err := c.accounts.Get(ctx, *cr.Spec.ForProvider.OrganizationName)
-		if err != nil {
-			return managed.ExternalCreation{}, errors.Wrapf(err, "failed to get account %s", *cr.Spec.ForProvider.OrganizationName)
-		}
-		if o.Account.Type != "organization" {
-			return managed.ExternalCreation{}, errors.Errorf("given account %s is not an organization", *cr.Spec.ForProvider.OrganizationName)
-		}
-		orgId = o.Organization.ID
+
+	a, err := c.accounts.Get(ctx, c.profile.ID)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "unable to retrieve account details: the token provided in the providerConfig is not a user token")
 	}
-	resp, err := c.teams.Create(ctx, &teams.CreateParameters{
-		Name:           cr.Spec.ForProvider.Name,
-		OrganizationID: orgId,
+
+	t, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
+		Attributes: tokens.TokenAttributes{
+			Name: cr.Spec.ForProvider.ControlPlaneName,
+		},
+		Relationships: tokens.TokenRelationships{
+			Owner: tokens.TokenOwner{
+				Data: tokens.TokenOwnerData{
+					Type: tokens.TokenOwnerUser,
+					ID:   strconv.Itoa(int(a.User.ID)),
+				},
+			},
+		},
 	})
 	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "failed to create team")
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create token")
 	}
-	meta.SetExternalName(cr, resp.ID)
+	kubeToken = t.DataSet.Meta["jwt"].(string)
+	meta.SetExternalName(cr, t.DataSet.ID.String())
 
-	return managed.ExternalCreation{}, nil
+	config, err := controlplaneauth.BuildControlPlaneKubeconfig(
+		cr.Spec.ForProvider.OrganizationName,
+		cr.Spec.ForProvider.ControlPlaneName,
+		kubeToken,
+	)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create kubeconfig")
+	}
+
+	return managed.ExternalCreation{
+		ConnectionDetails: managed.ConnectionDetails{
+			"kubeconfig": []byte(config),
+		},
+	}, nil
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
@@ -175,5 +202,13 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.teams.Delete(ctx, meta.GetExternalName(mg))), "failed to delete team")
+	cr, ok := mg.(*v1alpha1.ControlPlaneAuth)
+	if !ok {
+		return errors.New(errNotControlPlaneAuth)
+	}
+	uid, err := uuid.Parse(meta.GetExternalName(cr))
+	if err != nil {
+		return errors.Wrap(err, "cannot parse external name as UUID")
+	}
+	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
 }

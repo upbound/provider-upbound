@@ -45,8 +45,14 @@ type ControlPlanePermissionParameters struct {
 
 	// ControlPlaneName is the name of the control plane to which the permission
 	// will be granted.
-	// +kubebuilder:validation:Required
-	ControlPlaneName string `json:"controlPlaneName"`
+	// +crossplane:generate:reference:type=ControlPlane
+	ControlPlaneName string `json:"controlPlaneName,omitempty"`
+
+	// ControlPlaneNameRef references a Team to retrieve its name to populate ControlPlaneName.
+	ControlPlaneNameRef *xpv1.Reference `json:"controlPlaneNameRef,omitempty"`
+
+	// ControlPlaneNameSelector selects a reference to a Team to populate ControlPlaneNameDRef.
+	ControlPlaneNameSelector *xpv1.Selector `json:"controlPlaneNameSelector,omitempty"`
 
 	// Permission is the permission to grant to the team.
 	// +kubebuilder:validation:Enum=editor;viewer;owner

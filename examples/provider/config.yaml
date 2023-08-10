@@ -6,6 +6,6 @@ spec:
   credentials:
     source: Secret
     secretRef:
-      namespace: crossplane-system
-      name: up-creds
+      namespace: upbound-system
+      name: example-provider-secret
       key: creds

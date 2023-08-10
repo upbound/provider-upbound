@@ -1,14 +1,14 @@
 apiVersion: iam.upbound.io/v1alpha1
 kind: Token
 metadata:
-  name: mytoken
+  name: access-token
 spec:
   forProvider:
-    name: mytoken
+    name: access-token
     owner:
       type: robots
       idRef:
-        name: myrobot
+        name: serviceaccount
   writeConnectionSecretToRef:
-    name: up-token
-    namespace: crossplane-system
+    name: up-access-token
+    namespace: upbound-system

@@ -46,23 +46,24 @@ var (
 	DefaultAPIEndpoint, _ = url.Parse("https://api.upbound.io")
 )
 
-func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*up.Config, error) {
+func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*up.Config, Profile, error) {
 	pc := &v1alpha1.ProviderConfig{}
+	profile := Profile{}
 	if err := kube.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
-		return nil, errors.Wrapf(err, "cannot get provider config %s", mg.GetProviderConfigReference().Name)
+		return nil, profile, errors.Wrapf(err, "cannot get provider config %s", mg.GetProviderConfigReference().Name)
 	}
 
 	data, err := resource.CommonCredentialExtractor(ctx, pc.Spec.Credentials.Source, kube, pc.Spec.Credentials.CommonCredentialSelectors)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get credentials")
+		return nil, profile, errors.Wrap(err, "cannot get credentials")
 	}
 	cliConfig := &CLIConfig{}
 	if err := json.Unmarshal(data, cliConfig); err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal credentials")
+		return nil, profile, errors.Wrap(err, "cannot unmarshal credentials")
 	}
-	profile := cliConfig.Upbound.Profiles[cliConfig.Upbound.Default]
+	profile = cliConfig.Upbound.Profiles[cliConfig.Upbound.Default]
 	if len(profile.Session) == 0 {
-		return nil, errors.New("no session found")
+		return nil, profile, errors.New("no session found")
 	}
 	apiEndpoint := DefaultAPIEndpoint
 	if pc.Spec.Endpoint != nil {
@@ -70,12 +71,12 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 		// because 10/10 times I gave the wrong input, and it was hard to debug.
 		endpoint, err := url.Parse(*pc.Spec.Endpoint)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot parse apiEndpoint %s", *pc.Spec.Endpoint)
+			return nil, profile, errors.Wrapf(err, "cannot parse apiEndpoint %s", *pc.Spec.Endpoint)
 		}
 		a := fmt.Sprintf("%s://api.%s", endpoint.Scheme, endpoint.Host)
 		apiEndpoint, err = url.Parse(a)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot parse constructed api endpoint %s", a)
+			return nil, profile, errors.Wrapf(err, "cannot parse constructed api endpoint %s", a)
 		}
 	}
 	cj, _ := cookiejar.New(nil)
@@ -94,5 +95,5 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	})
 	return up.NewConfig(func(conf *up.Config) {
 		conf.Client = cl
-	}), nil
+	}), profile, nil
 }
