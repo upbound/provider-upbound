@@ -1,0 +1,9 @@
+apiVersion: mcp.upbound.io/v1alpha1
+kind: ControlPlane
+metadata:
+  name: controlplane-a
+spec:
+  forProvider:
+    description: controlplane-a
+    organizationName: upbound
+    configuration: caas-eks

@@ -100,7 +100,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	cfg, err := upclient.NewConfig(ctx, c.kube, cr)
+	cfg, _, err := upclient.NewConfig(ctx, c.kube, cr)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}

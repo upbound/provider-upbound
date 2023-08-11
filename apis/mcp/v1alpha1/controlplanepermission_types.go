@@ -45,8 +45,14 @@ type ControlPlanePermissionParameters struct {
 
 	// ControlPlaneName is the name of the control plane to which the permission
 	// will be granted.
-	// +kubebuilder:validation:Required
-	ControlPlaneName string `json:"controlPlaneName"`
+	// +crossplane:generate:reference:type=ControlPlane
+	ControlPlaneName string `json:"controlPlaneName,omitempty"`
+
+	// ControlPlaneNameRef references a Team to retrieve its name to populate ControlPlaneName.
+	ControlPlaneNameRef *xpv1.Reference `json:"controlPlaneNameRef,omitempty"`
+
+	// ControlPlaneNameSelector selects a reference to a Team to populate ControlPlaneNameDRef.
+	ControlPlaneNameSelector *xpv1.Selector `json:"controlPlaneNameSelector,omitempty"`
 
 	// Permission is the permission to grant to the team.
 	// +kubebuilder:validation:Enum=editor;viewer;owner
@@ -108,6 +114,21 @@ type ControlPlanePermissionList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ControlPlanePermission `json:"items"`
 }
+
+// PermissionGroup describes control plane permissions for the authenticated
+// user.
+type PermissionGroup string
+
+const (
+	// PermissionMember has the ability to read the basic environment of the
+	// team.
+	PermissionMember PermissionGroup = "member"
+	// PermissionOwner has the ability to modify any object in a linked control
+	// plane, including deleting the control plane.
+	PermissionOwner PermissionGroup = "owner"
+	// PermissionNone has no permissions on the control plane.
+	PermissionNone PermissionGroup = "none"
+)
 
 // ControlPlanePermission type metadata.
 var (

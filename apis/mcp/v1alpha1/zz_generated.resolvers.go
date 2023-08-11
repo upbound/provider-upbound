@@ -25,6 +25,32 @@ import (
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ResolveReferences of this ControlPlaneAuth.
+func (mg *ControlPlaneAuth) ResolveReferences(ctx context.Context, c client.Reader) error {
+	r := reference.NewAPIResolver(c, mg)
+
+	var rsp reference.ResolutionResponse
+	var err error
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: mg.Spec.ForProvider.ControlPlaneName,
+		Extract:      reference.ExternalName(),
+		Reference:    mg.Spec.ForProvider.ControlPlaneNameRef,
+		Selector:     mg.Spec.ForProvider.ControlPlaneNameSelector,
+		To: reference.To{
+			List:    &ControlPlaneList{},
+			Managed: &ControlPlane{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ControlPlaneName")
+	}
+	mg.Spec.ForProvider.ControlPlaneName = rsp.ResolvedValue
+	mg.Spec.ForProvider.ControlPlaneNameRef = rsp.ResolvedReference
+
+	return nil
+}
+
 // ResolveReferences of this ControlPlanePermission.
 func (mg *ControlPlanePermission) ResolveReferences(ctx context.Context, c client.Reader) error {
 	r := reference.NewAPIResolver(c, mg)
@@ -47,6 +73,22 @@ func (mg *ControlPlanePermission) ResolveReferences(ctx context.Context, c clien
 	}
 	mg.Spec.ForProvider.TeamID = reference.ToPtrValue(rsp.ResolvedValue)
 	mg.Spec.ForProvider.TeamIDRef = rsp.ResolvedReference
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: mg.Spec.ForProvider.ControlPlaneName,
+		Extract:      reference.ExternalName(),
+		Reference:    mg.Spec.ForProvider.ControlPlaneNameRef,
+		Selector:     mg.Spec.ForProvider.ControlPlaneNameSelector,
+		To: reference.To{
+			List:    &ControlPlaneList{},
+			Managed: &ControlPlane{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ControlPlaneName")
+	}
+	mg.Spec.ForProvider.ControlPlaneName = rsp.ResolvedValue
+	mg.Spec.ForProvider.ControlPlaneNameRef = rsp.ResolvedReference
 
 	return nil
 }

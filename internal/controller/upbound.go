@@ -21,6 +21,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/upbound/provider-upbound/internal/controller/config"
+	"github.com/upbound/provider-upbound/internal/controller/controlplane"
+	"github.com/upbound/provider-upbound/internal/controller/controlplaneauth"
 	"github.com/upbound/provider-upbound/internal/controller/controlplanepermission"
 	"github.com/upbound/provider-upbound/internal/controller/robot"
 	"github.com/upbound/provider-upbound/internal/controller/robotteammembership"
@@ -33,11 +35,13 @@ import (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		token.Setup,
-		robot.Setup,
-		team.Setup,
-		robotteammembership.Setup,
+		controlplane.Setup,
+		controlplaneauth.Setup,
 		controlplanepermission.Setup,
+		robot.Setup,
+		robotteammembership.Setup,
+		team.Setup,
+		token.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

@@ -1,11 +1,12 @@
 apiVersion: mcp.upbound.io/v1alpha1
 kind: ControlPlanePermission
 metadata:
-  name: editorperm
+  name: owner-team-a
 spec:
   forProvider:
-    organizationName: myorg
+    organizationName: upbound
     teamIdRef:
-      name: myteam
-    controlPlaneName: mycp
-    permission: editor
+      name: team-a
+    controlPlaneNameRef:
+      name: controlplane-a
+    permission: owner
