@@ -115,6 +115,21 @@ type ControlPlanePermissionList struct {
 	Items           []ControlPlanePermission `json:"items"`
 }
 
+// PermissionGroup describes control plane permissions for the authenticated
+// user.
+type PermissionGroup string
+
+const (
+	// PermissionMember has the ability to read the basic environment of the
+	// team.
+	PermissionMember PermissionGroup = "member"
+	// PermissionOwner has the ability to modify any object in a linked control
+	// plane, including deleting the control plane.
+	PermissionOwner PermissionGroup = "owner"
+	// PermissionNone has no permissions on the control plane.
+	PermissionNone PermissionGroup = "none"
+)
+
 // ControlPlanePermission type metadata.
 var (
 	ControlPlanePermissionKind             = reflect.TypeOf(ControlPlanePermission{}).Name()

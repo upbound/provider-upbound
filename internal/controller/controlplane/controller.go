@@ -152,7 +152,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotControlPlane)
 	}
-	configuration := pointer.StringDeref(cr.Spec.ForProvider.Configuration, "")
+	configuration := pointer.StringDeref(&cr.Spec.ForProvider.Configuration, "")
 	var configurationUuid uuid.UUID
 
 	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, configuration)
@@ -163,7 +163,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	resp, err := c.controlPlane.Create(ctx, cr.Spec.ForProvider.OrganizationName, &controlplanes.ControlPlaneCreateParameters{
 		Name:            meta.GetExternalName(cr),
-		Description:     cr.Spec.ForProvider.Description,
+		Description:     *cr.Spec.ForProvider.Description,
 		ConfigurationID: configurationUuid,
 	})
 	if err != nil {

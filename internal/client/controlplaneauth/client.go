@@ -57,9 +57,9 @@ func getSecret(ctx context.Context, kube client.Client, ref v1.SecretReference) 
 }
 
 // BuildControlPlaneKubeconfig build kubeconfig object
-func BuildControlPlaneKubeconfig(organisation, controlplane, token string) (string, error) {
-	clusterName := UpboundKubeconfigKeyFmt + organisation + "-" + controlplane
-	serverURL := UpboundProxy + organisation + "/" + controlplane + "/" + UpboundK8sResource
+func BuildControlPlaneKubeconfig(organization, controlplane, token string) (string, error) {
+	clusterName := UpboundKubeconfigKeyFmt + organization + "-" + controlplane
+	serverURL := UpboundProxy + organization + "/" + controlplane + "/" + UpboundK8sResource
 
 	config := &api.Config{
 		Clusters: map[string]*api.Cluster{

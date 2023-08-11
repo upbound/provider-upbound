@@ -28,12 +28,12 @@ import (
 // ControlPlaneParameters are the configurable fields of a ControlPlane.
 type ControlPlaneParameters struct {
 	// Description is the description of the the control plane
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 
 	// Configuration is the name of the predefined configuration
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	Configuration *string `json:"configuration"`
+	Configuration string `json:"configuration"`
 
 	// OrganizationName is the name of the organization to which the control plane
 	// belongs.
@@ -112,21 +112,6 @@ const (
 	StatusUpdating     Status = "updating"
 	StatusReady        Status = "ready"
 	StatusDeleting     Status = "deleting"
-)
-
-// PermissionGroup describes control plane permissions for the authenticated
-// user.
-type PermissionGroup string
-
-const (
-	// PermissionMember has the ability to read the basic environment of the
-	// team.
-	PermissionMember PermissionGroup = "member"
-	// PermissionOwner has the ability to modify any object in a linked control
-	// plane, including deleting the control plane.
-	PermissionOwner PermissionGroup = "owner"
-	// PermissionNone has no permissions on the control plane.
-	PermissionNone PermissionGroup = "none"
 )
 
 // +kubebuilder:object:root=true
