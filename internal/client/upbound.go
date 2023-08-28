@@ -18,10 +18,12 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -96,4 +98,22 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	return up.NewConfig(func(conf *up.Config) {
 		conf.Client = cl
 	}), profile, nil
+}
+
+// ExtractUserIDFromToken extracts userId from SessionToken
+func ExtractUserIDFromToken(sToken string) (string, error) {
+	token := strings.Split(sToken, ".")
+	if len(token) != 3 {
+		return "", errors.New("invalid token format")
+	}
+
+	claimsData, _ := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(token[1])
+
+	var claims map[string]interface{}
+	err := json.Unmarshal(claimsData, &claims)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to unmarshal token claims")
+	}
+
+	return fmt.Sprintf("%d", claims["id"]), nil
 }
