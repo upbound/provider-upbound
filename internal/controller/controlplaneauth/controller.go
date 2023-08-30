@@ -19,7 +19,6 @@ package controlplaneauth
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
@@ -137,7 +136,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
 	}
-	resp, err := c.tokens.Get(ctx, uid)
+	_, err = c.tokens.Get(ctx, uid)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
 	}
@@ -146,7 +145,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.ControlPlaneName,
+		ResourceUpToDate: true,
 	}, nil
 }
 
@@ -157,9 +156,9 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotControlPlaneAuth)
 	}
 
-	a, err := c.accounts.Get(ctx, c.profile.ID)
+	userID, err := upclient.ExtractUserIDFromToken(c.profile.Session)
 	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "unable to retrieve account details: the token provided in the providerConfig is not a user token")
+		return managed.ExternalCreation{}, errors.Wrap(err, "unable to retrieve userId from token")
 	}
 
 	t, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
@@ -170,7 +169,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			Owner: tokens.TokenOwner{
 				Data: tokens.TokenOwnerData{
 					Type: tokens.TokenOwnerUser,
-					ID:   strconv.Itoa(int(a.User.ID)),
+					ID:   userID,
 				},
 			},
 		},
