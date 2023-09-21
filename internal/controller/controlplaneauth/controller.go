@@ -163,7 +163,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	t, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
 		Attributes: tokens.TokenAttributes{
-			Name: cr.Spec.ForProvider.ControlPlaneName,
+			Name: fmt.Sprintf("%.64s", cr.Spec.ForProvider.ControlPlaneName+"-"+string(cr.UID)),
 		},
 		Relationships: tokens.TokenRelationships{
 			Owner: tokens.TokenOwner{
