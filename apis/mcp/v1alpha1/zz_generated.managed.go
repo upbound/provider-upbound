@@ -29,17 +29,14 @@ func (mg *ControlPlane) GetDeletionPolicy() xpv1.DeletionPolicy {
 	return mg.Spec.DeletionPolicy
 }
 
+// GetManagementPolicies of this ControlPlane.
+func (mg *ControlPlane) GetManagementPolicies() xpv1.ManagementPolicies {
+	return mg.Spec.ManagementPolicies
+}
+
 // GetProviderConfigReference of this ControlPlane.
 func (mg *ControlPlane) GetProviderConfigReference() *xpv1.Reference {
 	return mg.Spec.ProviderConfigReference
-}
-
-/*
-GetProviderReference of this ControlPlane.
-Deprecated: Use GetProviderConfigReference.
-*/
-func (mg *ControlPlane) GetProviderReference() *xpv1.Reference {
-	return mg.Spec.ProviderReference
 }
 
 // GetPublishConnectionDetailsTo of this ControlPlane.
@@ -62,17 +59,14 @@ func (mg *ControlPlane) SetDeletionPolicy(r xpv1.DeletionPolicy) {
 	mg.Spec.DeletionPolicy = r
 }
 
+// SetManagementPolicies of this ControlPlane.
+func (mg *ControlPlane) SetManagementPolicies(r xpv1.ManagementPolicies) {
+	mg.Spec.ManagementPolicies = r
+}
+
 // SetProviderConfigReference of this ControlPlane.
 func (mg *ControlPlane) SetProviderConfigReference(r *xpv1.Reference) {
 	mg.Spec.ProviderConfigReference = r
-}
-
-/*
-SetProviderReference of this ControlPlane.
-Deprecated: Use SetProviderConfigReference.
-*/
-func (mg *ControlPlane) SetProviderReference(r *xpv1.Reference) {
-	mg.Spec.ProviderReference = r
 }
 
 // SetPublishConnectionDetailsTo of this ControlPlane.
@@ -95,17 +89,14 @@ func (mg *ControlPlaneAuth) GetDeletionPolicy() xpv1.DeletionPolicy {
 	return mg.Spec.DeletionPolicy
 }
 
+// GetManagementPolicies of this ControlPlaneAuth.
+func (mg *ControlPlaneAuth) GetManagementPolicies() xpv1.ManagementPolicies {
+	return mg.Spec.ManagementPolicies
+}
+
 // GetProviderConfigReference of this ControlPlaneAuth.
 func (mg *ControlPlaneAuth) GetProviderConfigReference() *xpv1.Reference {
 	return mg.Spec.ProviderConfigReference
-}
-
-/*
-GetProviderReference of this ControlPlaneAuth.
-Deprecated: Use GetProviderConfigReference.
-*/
-func (mg *ControlPlaneAuth) GetProviderReference() *xpv1.Reference {
-	return mg.Spec.ProviderReference
 }
 
 // GetPublishConnectionDetailsTo of this ControlPlaneAuth.
@@ -128,17 +119,14 @@ func (mg *ControlPlaneAuth) SetDeletionPolicy(r xpv1.DeletionPolicy) {
 	mg.Spec.DeletionPolicy = r
 }
 
+// SetManagementPolicies of this ControlPlaneAuth.
+func (mg *ControlPlaneAuth) SetManagementPolicies(r xpv1.ManagementPolicies) {
+	mg.Spec.ManagementPolicies = r
+}
+
 // SetProviderConfigReference of this ControlPlaneAuth.
 func (mg *ControlPlaneAuth) SetProviderConfigReference(r *xpv1.Reference) {
 	mg.Spec.ProviderConfigReference = r
-}
-
-/*
-SetProviderReference of this ControlPlaneAuth.
-Deprecated: Use SetProviderConfigReference.
-*/
-func (mg *ControlPlaneAuth) SetProviderReference(r *xpv1.Reference) {
-	mg.Spec.ProviderReference = r
 }
 
 // SetPublishConnectionDetailsTo of this ControlPlaneAuth.
@@ -161,17 +149,14 @@ func (mg *ControlPlanePermission) GetDeletionPolicy() xpv1.DeletionPolicy {
 	return mg.Spec.DeletionPolicy
 }
 
+// GetManagementPolicies of this ControlPlanePermission.
+func (mg *ControlPlanePermission) GetManagementPolicies() xpv1.ManagementPolicies {
+	return mg.Spec.ManagementPolicies
+}
+
 // GetProviderConfigReference of this ControlPlanePermission.
 func (mg *ControlPlanePermission) GetProviderConfigReference() *xpv1.Reference {
 	return mg.Spec.ProviderConfigReference
-}
-
-/*
-GetProviderReference of this ControlPlanePermission.
-Deprecated: Use GetProviderConfigReference.
-*/
-func (mg *ControlPlanePermission) GetProviderReference() *xpv1.Reference {
-	return mg.Spec.ProviderReference
 }
 
 // GetPublishConnectionDetailsTo of this ControlPlanePermission.
@@ -194,17 +179,14 @@ func (mg *ControlPlanePermission) SetDeletionPolicy(r xpv1.DeletionPolicy) {
 	mg.Spec.DeletionPolicy = r
 }
 
+// SetManagementPolicies of this ControlPlanePermission.
+func (mg *ControlPlanePermission) SetManagementPolicies(r xpv1.ManagementPolicies) {
+	mg.Spec.ManagementPolicies = r
+}
+
 // SetProviderConfigReference of this ControlPlanePermission.
 func (mg *ControlPlanePermission) SetProviderConfigReference(r *xpv1.Reference) {
 	mg.Spec.ProviderConfigReference = r
-}
-
-/*
-SetProviderReference of this ControlPlanePermission.
-Deprecated: Use SetProviderConfigReference.
-*/
-func (mg *ControlPlanePermission) SetProviderReference(r *xpv1.Reference) {
-	mg.Spec.ProviderReference = r
 }
 
 // SetPublishConnectionDetailsTo of this ControlPlanePermission.
