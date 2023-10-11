@@ -7,3 +7,14 @@ spec:
     description: controlplane-a
     organizationName: upbound
     configuration: caas-eks
+---
+apiVersion: mcp.upbound.io/v1alpha1
+kind: ControlPlane
+metadata:
+  name: controlplane-b
+spec:
+  managementPolicies: [Observe]
+  forProvider:
+    description: controlplane-b
+    organizationName: upbound
+    configuration: caas-eks
