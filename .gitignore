@@ -7,3 +7,4 @@ cover.out
 .vscode
 .idea
 .DS_Store
+__debug*
