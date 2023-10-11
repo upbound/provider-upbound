@@ -163,7 +163,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	resp, err := c.controlPlane.Create(ctx, cr.Spec.ForProvider.OrganizationName, &controlplanes.ControlPlaneCreateParameters{
 		Name:            meta.GetExternalName(cr),
-		Description:     *cr.Spec.ForProvider.Description,
+		Description:     pointer.StringDeref(cr.Spec.ForProvider.Description, ""),
 		ConfigurationID: configurationUuid,
 	})
 	if err != nil {
