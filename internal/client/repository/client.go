@@ -23,7 +23,7 @@ import (
 	v1alpha1 "github.com/upbound/provider-upbound/apis/repository/v1alpha1"
 )
 
-// GetSecretValue fetches the referenced input secret key reference
+// StatusFromResponse set status from response
 func StatusFromResponse(resp repositories.Repository) v1alpha1.RepositoryObservation {
 
 	status := v1alpha1.RepositoryObservation{}
