@@ -1,0 +1,12 @@
+apiVersion: repository.upbound.io/v1alpha1
+kind: Permission
+metadata:
+  name: example
+spec:
+  forProvider:
+    permission: write
+    organizationName: upbound
+    teamIdRef:
+      name: team-a
+    repositoryRef:
+      name: example

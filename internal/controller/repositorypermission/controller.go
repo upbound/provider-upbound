@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package team
+package repositorypermission
 
 import (
 	"context"
@@ -26,30 +26,27 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
+	"github.com/upbound/provider-upbound/apis/repository/v1alpha1"
+	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	upclient "github.com/upbound/provider-upbound/internal/client"
+	"github.com/upbound/provider-upbound/internal/client/repositorypermission"
+	"github.com/upbound/provider-upbound/internal/features"
+	uperrors "github.com/upbound/up-sdk-go/errors"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	uperrors "github.com/upbound/up-sdk-go/errors"
-	"github.com/upbound/up-sdk-go/service/accounts"
-
-	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
-	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
-	upclient "github.com/upbound/provider-upbound/internal/client"
-	"github.com/upbound/provider-upbound/internal/client/teams"
-	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
-	errNotTeam      = "managed resource is not a Team custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
+	errNotPermission = "managed resource is not a RepositoryPermission custom resource"
+	errTrackPCUsage  = "cannot track ProviderConfig usage"
 
 	errNewClient = "cannot create new client"
 )
 
-// Setup adds a controller that reconciles Team managed resources.
+// Setup adds a controller that reconciles Permission managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.TeamGroupKind)
+	name := managed.ControllerName(v1alpha1.PermissionGroupKind)
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnecter(&connector{
@@ -69,14 +66,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.TeamGroupVersionKind),
+		resource.ManagedKind(v1alpha1.PermissionGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Team{}).
+		For(&v1alpha1.Permission{}).
 		Complete(r)
 }
 
@@ -93,9 +90,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.Permission)
 	if !ok {
-		return nil, errors.New(errNotTeam)
+		return nil, errors.New(errNotPermission)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -108,8 +105,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		teams:    teams.NewClient(cfg),
-		accounts: accounts.NewClient(cfg),
+		repositorypermission: repositorypermission.NewClient(cfg),
 	}, nil
 }
 
@@ -117,59 +113,49 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	teams    *teams.Client
-	accounts *accounts.Client
+	// would be something like an Upbound SDK client.
+	repositorypermission *repositorypermission.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.Permission)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotTeam)
+		return managed.ExternalObservation{}, errors.New(errNotPermission)
 	}
 
-	if meta.GetExternalName(cr) == "" {
-		return managed.ExternalObservation{}, nil
-	}
-	_, err := c.teams.Get(ctx, meta.GetExternalName(cr))
+	err := c.repositorypermission.Get(ctx, &repositorypermission.GetParameters{
+		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Organization: cr.Spec.ForProvider.OrganizationName,
+		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+	})
+
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get team")
 	}
 	cr.Status.SetConditions(v1.Available())
 	return managed.ExternalObservation{
-		ResourceExists: true,
-		// Name is not returned in the API.
+		ResourceExists:   true,
 		ResourceUpToDate: true,
 	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*v1alpha1.Permission)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotTeam)
+		return managed.ExternalCreation{}, errors.New(errNotPermission)
 	}
-	orgId := uint(pointer.IntDeref(cr.Spec.ForProvider.OrganizationID, 0))
-	if orgId == 0 {
-		if cr.Spec.ForProvider.OrganizationName == nil {
-			return managed.ExternalCreation{}, errors.New("either organizationName or organizationId must be specified")
-		}
-		o, err := c.accounts.Get(ctx, *cr.Spec.ForProvider.OrganizationName)
-		if err != nil {
-			return managed.ExternalCreation{}, errors.Wrapf(err, "failed to get account %s", *cr.Spec.ForProvider.OrganizationName)
-		}
-		if o.Account.Type != "organization" {
-			return managed.ExternalCreation{}, errors.Errorf("given account %s is not an organization", *cr.Spec.ForProvider.OrganizationName)
-		}
-		orgId = o.Organization.ID
-	}
-	resp, err := c.teams.Create(ctx, &teams.CreateParameters{
-		Name:           cr.Spec.ForProvider.Name,
-		OrganizationID: orgId,
+
+	err := c.repositorypermission.Create(ctx, &repositorypermission.CreateParameters{
+		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Organization: cr.Spec.ForProvider.OrganizationName,
+		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		Permission:   cr.Spec.ForProvider.Permission,
 	})
 	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "failed to create team")
+		return managed.ExternalCreation{}, errors.Wrap(err, "failed to create repository permission")
 	}
-	meta.SetExternalName(cr, resp.ID)
+
+	meta.SetExternalName(cr, pointer.StringDeref(cr.Spec.ForProvider.Repository, ""))
 
 	return managed.ExternalCreation{}, nil
 }
@@ -179,5 +165,16 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.teams.Delete(ctx, meta.GetExternalName(mg))), "failed to delete team")
+	cr, ok := mg.(*v1alpha1.Permission)
+	if !ok {
+		return errors.New(errNotPermission)
+	}
+
+	err := c.repositorypermission.Delete(ctx, &repositorypermission.GetParameters{
+		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Organization: cr.Spec.ForProvider.OrganizationName,
+		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+	})
+	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete repositroy permission")
+
 }

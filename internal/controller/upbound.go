@@ -25,6 +25,7 @@ import (
 	"github.com/upbound/provider-upbound/internal/controller/controlplaneauth"
 	"github.com/upbound/provider-upbound/internal/controller/controlplanepermission"
 	"github.com/upbound/provider-upbound/internal/controller/repository"
+	"github.com/upbound/provider-upbound/internal/controller/repositorypermission"
 	"github.com/upbound/provider-upbound/internal/controller/robot"
 	"github.com/upbound/provider-upbound/internal/controller/robotteammembership"
 	"github.com/upbound/provider-upbound/internal/controller/team"
@@ -40,6 +41,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		controlplaneauth.Setup,
 		controlplanepermission.Setup,
 		repository.Setup,
+		repositorypermission.Setup,
 		robot.Setup,
 		robotteammembership.Setup,
 		team.Setup,
