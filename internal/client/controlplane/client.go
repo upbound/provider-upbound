@@ -17,19 +17,64 @@ limitations under the License.
 package controlplane
 
 import (
+	"regexp"
+
 	"github.com/upbound/up-sdk-go/service/controlplanes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/upbound/up-sdk-go"
 
 	v1alpha1 "github.com/upbound/provider-upbound/apis/mcp/v1alpha1"
 )
 
+const (
+	basePathFmt = "/v1/controlPlanes/%s/"
+)
+
+func NewClient(cfg *up.Config) *Client {
+	return &Client{
+		Config: cfg,
+	}
+}
+
+type Client struct {
+	*up.Config
+}
+
+func (c *Client) Apply(ctx context.Context, params *ApplyParameters) error {
+	patches := &ControlPlanePatch{
+		Patches: []SetDesiredVersion{
+			{
+				SetDesiredVersion: params.DesiredVersion,
+			},
+		},
+	}
+
+	req, err := c.Client.NewRequest(ctx, http.MethodPatch, fmt.Sprintf(basePathFmt, params.Organization), params.Name, patches)
+	if err != nil {
+		return err
+	}
+	if err := c.Client.Do(req, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetSecretValue fetches the referenced input secret key reference
-func StatusFromResponse(resp *controlplanes.ControlPlaneResponse) v1alpha1.ControlPlaneResponse {
+func StatusFromResponse(resp *controlplanes.ControlPlaneResponse, latestAvailableVersion *string) v1alpha1.ControlPlaneResponse {
 
 	status := v1alpha1.ControlPlaneResponse{
 		ControlPlane: v1alpha1.ControlPlaneObs{
 			Configuration: v1alpha1.ControlPlaneConfiguration{},
 		},
+	}
+
+	if latestAvailableVersion != nil {
+		status.ControlPlane.Configuration.LatestAvailableVersion = latestAvailableVersion
 	}
 
 	status.ControlPlane.ID = resp.ControlPlane.ID.String()
@@ -72,4 +117,64 @@ func StatusFromResponse(resp *controlplanes.ControlPlaneResponse) v1alpha1.Contr
 	}
 
 	return status
+}
+
+// CompareVersions checks if current and desired version for configurations matches
+func CompareVersions(version1, version2 string) int { //nolint:gocyclo
+	re := regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)\+(\d+)`)
+
+	matches1 := re.FindStringSubmatch(version1)
+	matches2 := re.FindStringSubmatch(version2)
+
+	if len(matches1) == 0 || len(matches2) == 0 {
+		// Invalid versions, can't compare
+		return 0
+	}
+
+	// Extract version components
+	major1 := parseVersionPart(matches1[1])
+	minor1 := parseVersionPart(matches1[2])
+	patch1 := parseVersionPart(matches1[3])
+	numericPart1 := parseVersionPart(matches1[4])
+
+	major2 := parseVersionPart(matches2[1])
+	minor2 := parseVersionPart(matches2[2])
+	patch2 := parseVersionPart(matches2[3])
+	numericPart2 := parseVersionPart(matches2[4])
+
+	// Compare version components
+	if major1 > major2 {
+		return 1
+	} else if major1 < major2 {
+		return -1
+	}
+
+	if minor1 > minor2 {
+		return 1
+	} else if minor1 < minor2 {
+		return -1
+	}
+
+	if patch1 > patch2 {
+		return 1
+	} else if patch1 < patch2 {
+		return -1
+	}
+
+	if numericPart1 > numericPart2 {
+		return 1
+	} else if numericPart1 < numericPart2 {
+		return -1
+	}
+
+	return 0
+}
+
+func parseVersionPart(part string) int {
+	var num int
+	_, err := fmt.Sscanf(part, "%d", &num)
+	if err != nil {
+		num = 0
+	}
+	return num
 }

@@ -40,6 +40,19 @@ type ControlPlaneParameters struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	OrganizationName string `json:"organizationName"`
+
+	// A value that indicates whether the configuration version update takes effect immediately.
+	//
+	// The AutoUpdate parameter specifically impacts the version value.
+	// If the ApplyImmediately parameter is turned off, changes to the configuration require updating the version field.
+	//
+	// By default, this parameter is turned off.
+	AutoUpdate *bool `json:"autoUpdate,omitempty"`
+
+	// EngineVersion is the version of the control plane.
+	// If it is nil, the last available version given by configuration will be used.
+	// +optional
+	Version *string `json:"version,omitempty"`
 }
 
 // A ControlPlaneSpec defines the desired state of a ControlPlane.
@@ -64,27 +77,29 @@ type ControlPlaneResponse struct {
 
 // ControlPlane describes a control plane.
 type ControlPlaneObs struct {
-	ID            string                    `json:"id,omitempty"`
-	Name          string                    `json:"name,omitempty"`
-	Description   string                    `json:"description,omitempty"`
-	CreatorID     uint                      `json:"creatorId,omitempty"`
-	Reserved      bool                      `json:"reserved"`
-	CreatedAt     *metav1.Time              `json:"createdAt,omitempty"`
-	UpdatedAt     *metav1.Time              `json:"updatedAt,omitempty"`
-	ExpiresAt     metav1.Time               `json:"expiresAt,omitempty"`
-	Configuration ControlPlaneConfiguration `json:"configuration"`
+	ID              string                    `json:"id,omitempty"`
+	Name            string                    `json:"name,omitempty"`
+	Description     string                    `json:"description,omitempty"`
+	CreatorID       uint                      `json:"creatorId,omitempty"`
+	Reserved        bool                      `json:"reserved"`
+	CreatedAt       *metav1.Time              `json:"createdAt,omitempty"`
+	UpdatedAt       *metav1.Time              `json:"updatedAt,omitempty"`
+	VersionUpToDate *bool                     `json:"versionUpToDate,omitempty"`
+	ExpiresAt       metav1.Time               `json:"expiresAt,omitempty"`
+	Configuration   ControlPlaneConfiguration `json:"configuration"`
 }
 
 // ControlPlaneConfiguration represents an instance of a Configuration associated with a
 // Managed Control Plane on Upbound.
 type ControlPlaneConfiguration struct {
-	ID             string              `json:"id"`
-	Name           *string             `json:"name,omitempty"`
-	CurrentVersion *string             `json:"currentVersion,omitempty"`
-	DesiredVersion *string             `json:"desiredVersion,omitempty"`
-	Status         ConfigurationStatus `json:"status"`
-	SyncedAt       *metav1.Time        `json:"syncedAt,omitempty"`
-	DeployedAt     *metav1.Time        `json:"deployedAt,omitempty"`
+	ID                     string              `json:"id"`
+	Name                   *string             `json:"name,omitempty"`
+	CurrentVersion         *string             `json:"currentVersion,omitempty"`
+	DesiredVersion         *string             `json:"desiredVersion,omitempty"`
+	LatestAvailableVersion *string             `json:"latestAvailableVersion,omitempty"`
+	Status                 ConfigurationStatus `json:"status"`
+	SyncedAt               *metav1.Time        `json:"syncedAt,omitempty"`
+	DeployedAt             *metav1.Time        `json:"deployedAt,omitempty"`
 }
 
 // ConfigurationStatus represents the different states of a Configuration relative to a Managed Control Plane.
@@ -119,6 +134,7 @@ const (
 // A ControlPlane is used to create a controlplane
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="CONFIGURATION-UP-TO-DATE",type="string",JSONPath=".status.atProvider.controlPlane.versionUpToDate"
 // +kubebuilder:printcolumn:name="EXTERNAL-NAME",type="string",JSONPath=".metadata.annotations.crossplane\\.io/external-name"
 // +kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.atProvider.controlPlane.id"
 // +kubebuilder:printcolumn:name="DEPLOYED-CONFIGURATION",type="string",JSONPath=".status.atProvider.controlPlane.configuration.name"

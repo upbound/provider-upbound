@@ -25,15 +25,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	cmp "github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/configurations"
 	"github.com/upbound/up-sdk-go/service/controlplanes"
+	"k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/upbound/provider-upbound/apis/mcp/v1alpha1"
 	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
@@ -111,21 +111,23 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		controlPlane:   controlplanes.NewClient(cfg),
-		configurations: configurations.NewClient(cfg),
-		kube:           c.kube,
+		controlPlane:      controlplanes.NewClient(cfg),
+		configurations:    configurations.NewClient(cfg),
+		localControlPlane: controlplane.NewClient(cfg),
+		kube:              c.kube,
 	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	controlPlane   *controlplanes.Client
-	configurations *configurations.Client
-	kube           client.Client
+	controlPlane      *controlplanes.Client
+	configurations    *configurations.Client
+	localControlPlane *controlplane.Client
+	kube              client.Client
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) { //nolint:gocyclo
 	cr, ok := mg.(*v1alpha1.ControlPlane)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotControlPlane)
@@ -137,16 +139,58 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	resp, err := c.controlPlane.Get(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))
 	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot")
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get control plane")
 	}
 
-	cr.Status.AtProvider = controlplane.StatusFromResponse(resp)
+	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, pointer.StringDeref(&cr.Spec.ForProvider.Configuration, ""))
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get configuration")
+	}
+
+	cr.Status.AtProvider = controlplane.StatusFromResponse(resp, o.LatestVersion)
+	up2date := pointer.StringDeref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "") == pointer.StringDeref(cr.Spec.ForProvider.Version, "")
+	cr.Status.AtProvider.ControlPlane.VersionUpToDate = &up2date
+
+	// lateInit
+	current := cr.Spec.ForProvider.DeepCopy()
+	if resp.ControlPlane.Configuration.CurrentVersion != nil && cr.Spec.ForProvider.Version == nil {
+		cr.Spec.ForProvider.Version = resp.ControlPlane.Configuration.CurrentVersion
+	}
+
+	// autoUpdate true
+	if cr.Spec.ForProvider.AutoUpdate != nil && *cr.Spec.ForProvider.AutoUpdate && cr.Status.AtProvider.ControlPlane.Configuration.Status == v1alpha1.ConfigurationReady {
+		version := pointer.StringDeref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "")
+		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
+
+		if controlplane.CompareVersions(version, currentVersion) >= 1 {
+			// set new version
+			cr.Spec.ForProvider.Version = &version
+			return managed.ExternalObservation{
+				ResourceExists:          true,
+				ResourceUpToDate:        false,
+				ResourceLateInitialized: !cmp.Equal(current, &cr.Spec.ForProvider),
+			}, nil
+		}
+	}
+
+	// version update
+	if cr.Spec.ForProvider.Version != nil && cr.Status.AtProvider.ControlPlane.Configuration.Status == v1alpha1.ConfigurationReady {
+		version := pointer.StringDeref(cr.Spec.ForProvider.Version, "")
+		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
+
+		if controlplane.CompareVersions(version, currentVersion) >= 1 {
+			return managed.ExternalObservation{
+				ResourceExists:   true,
+				ResourceUpToDate: false,
+			}, nil
+		}
+	}
 
 	cr.Status.SetConditions(v1.Available())
-
 	return managed.ExternalObservation{
-		ResourceExists:   true,
-		ResourceUpToDate: true,
+		ResourceExists:          true,
+		ResourceUpToDate:        true,
+		ResourceLateInitialized: !cmp.Equal(current, &cr.Spec.ForProvider),
 	}, nil
 }
 
@@ -176,10 +220,17 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
-	// There is no Update endpoints in controlPlane API.
-	// we utilize the controlplane name as the external name
-	return managed.ExternalUpdate{}, nil
+func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*v1alpha1.ControlPlane)
+	if !ok {
+		return managed.ExternalUpdate{}, errors.New(errNotControlPlane)
+	}
+	params := &controlplane.ApplyParameters{
+		Name:           meta.GetExternalName(cr),
+		Organization:   cr.Spec.ForProvider.OrganizationName,
+		DesiredVersion: pointer.StringDeref(cr.Spec.ForProvider.Version, ""),
+	}
+	return managed.ExternalUpdate{}, errors.Wrap(c.localControlPlane.Apply(ctx, params), "cannot apply control plane update")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {

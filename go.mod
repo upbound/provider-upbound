@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230912122805-43c9ceeb2071
 	github.com/crossplane/crossplane-tools v0.0.0-20230925130601-628280f8bf79
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f
@@ -39,7 +40,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
