@@ -162,7 +162,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		version := pointer.StringDeref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "")
 		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
 
-		if controlplane.CompareVersions(version, currentVersion) >= 1 {
+		if controlplane.CompareVersions(version, currentVersion) == 1 {
 			// set new version
 			cr.Spec.ForProvider.Version = &version
 			return managed.ExternalObservation{
@@ -178,7 +178,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		version := pointer.StringDeref(cr.Spec.ForProvider.Version, "")
 		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
 
-		if controlplane.CompareVersions(version, currentVersion) >= 1 {
+		if controlplane.CompareVersions(version, currentVersion) == 1 {
 			return managed.ExternalObservation{
 				ResourceExists:   true,
 				ResourceUpToDate: false,

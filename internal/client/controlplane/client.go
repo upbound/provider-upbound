@@ -17,8 +17,9 @@ limitations under the License.
 package controlplane
 
 import (
-	"regexp"
+	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/upbound/up-sdk-go/service/controlplanes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -31,9 +32,7 @@ import (
 	v1alpha1 "github.com/upbound/provider-upbound/apis/mcp/v1alpha1"
 )
 
-const (
-	basePathFmt = "/v1/controlPlanes/%s/"
-)
+const basePathFmt = "/v1/controlPlanes/%s/"
 
 func NewClient(cfg *up.Config) *Client {
 	return &Client{
@@ -121,60 +120,31 @@ func StatusFromResponse(resp *controlplanes.ControlPlaneResponse, latestAvailabl
 
 // CompareVersions checks if current and desired version for configurations matches
 func CompareVersions(version1, version2 string) int { //nolint:gocyclo
-	re := regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)\+(\d+)`)
+	semver1, err1 := semver.NewVersion(version1)
+	semver2, err2 := semver.NewVersion(version2)
 
-	matches1 := re.FindStringSubmatch(version1)
-	matches2 := re.FindStringSubmatch(version2)
-
-	if len(matches1) == 0 || len(matches2) == 0 {
+	if err1 != nil || err2 != nil {
 		// Invalid versions, can't compare
 		return 0
 	}
 
-	// Extract version components
-	major1 := parseVersionPart(matches1[1])
-	minor1 := parseVersionPart(matches1[2])
-	patch1 := parseVersionPart(matches1[3])
-	numericPart1 := parseVersionPart(matches1[4])
+	versionCmp := semver1.Compare(semver2)
 
-	major2 := parseVersionPart(matches2[1])
-	minor2 := parseVersionPart(matches2[2])
-	patch2 := parseVersionPart(matches2[3])
-	numericPart2 := parseVersionPart(matches2[4])
-
-	// Compare version components
-	if major1 > major2 {
-		return 1
-	} else if major1 < major2 {
-		return -1
+	if versionCmp == 0 {
+		// Versions are equal based on semantic versioning,
+		// compare the package metadata parts
+		packageMetadata1 := getPackageMetadata(version1)
+		packageMetadata2 := getPackageMetadata(version2)
+		return strings.Compare(packageMetadata1, packageMetadata2)
 	}
 
-	if minor1 > minor2 {
-		return 1
-	} else if minor1 < minor2 {
-		return -1
-	}
-
-	if patch1 > patch2 {
-		return 1
-	} else if patch1 < patch2 {
-		return -1
-	}
-
-	if numericPart1 > numericPart2 {
-		return 1
-	} else if numericPart1 < numericPart2 {
-		return -1
-	}
-
-	return 0
+	return versionCmp
 }
 
-func parseVersionPart(part string) int {
-	var num int
-	_, err := fmt.Sscanf(part, "%d", &num)
-	if err != nil {
-		num = 0
+func getPackageMetadata(version string) string {
+	parts := strings.SplitN(version, "+", 2)
+	if len(parts) == 2 {
+		return parts[1]
 	}
-	return num
+	return ""
 }
