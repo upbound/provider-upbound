@@ -203,6 +203,11 @@ func (in *ControlPlaneConfiguration) DeepCopyInto(out *ControlPlaneConfiguration
 		*out = new(string)
 		**out = **in
 	}
+	if in.LatestAvailableVersion != nil {
+		in, out := &in.LatestAvailableVersion, &out.LatestAvailableVersion
+		*out = new(string)
+		**out = **in
+	}
 	if in.SyncedAt != nil {
 		in, out := &in.SyncedAt, &out.SyncedAt
 		*out = (*in).DeepCopy()
@@ -266,6 +271,11 @@ func (in *ControlPlaneObs) DeepCopyInto(out *ControlPlaneObs) {
 		in, out := &in.UpdatedAt, &out.UpdatedAt
 		*out = (*in).DeepCopy()
 	}
+	if in.VersionUpToDate != nil {
+		in, out := &in.VersionUpToDate, &out.VersionUpToDate
+		*out = new(bool)
+		**out = **in
+	}
 	in.ExpiresAt.DeepCopyInto(&out.ExpiresAt)
 	in.Configuration.DeepCopyInto(&out.Configuration)
 }
@@ -285,6 +295,16 @@ func (in *ControlPlaneParameters) DeepCopyInto(out *ControlPlaneParameters) {
 	*out = *in
 	if in.Description != nil {
 		in, out := &in.Description, &out.Description
+		*out = new(string)
+		**out = **in
+	}
+	if in.AutoUpdate != nil {
+		in, out := &in.AutoUpdate, &out.AutoUpdate
+		*out = new(bool)
+		**out = **in
+	}
+	if in.Version != nil {
+		in, out := &in.Version, &out.Version
 		*out = new(string)
 		**out = **in
 	}

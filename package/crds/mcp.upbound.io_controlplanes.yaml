@@ -25,6 +25,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
       type: string
+    - jsonPath: .status.atProvider.controlPlane.versionUpToDate
+      name: CONFIGURATION-UP-TO-DATE
+      type: string
     - jsonPath: .metadata.annotations.crossplane\.io/external-name
       name: EXTERNAL-NAME
       type: string
@@ -77,6 +80,14 @@ spec:
                 description: ControlPlaneParameters are the configurable fields of
                   a ControlPlane.
                 properties:
+                  autoUpdate:
+                    description: "A value that indicates whether the configuration
+                      version update takes effect immediately. \n The AutoUpdate parameter
+                      specifically impacts the version value. If the ApplyImmediately
+                      parameter is turned off, changes to the configuration require
+                      updating the version field. \n By default, this parameter is
+                      turned off."
+                    type: boolean
                   configuration:
                     description: Configuration is the name of the predefined configuration
                     minLength: 1
@@ -89,6 +100,11 @@ spec:
                     description: OrganizationName is the name of the organization
                       to which the control plane belongs.
                     minLength: 1
+                    type: string
+                  version:
+                    description: EngineVersion is the version of the control plane.
+                      If it is nil, the last available version given by configuration
+                      will be used.
                     type: string
                 required:
                 - configuration
@@ -279,6 +295,8 @@ spec:
                             type: string
                           id:
                             type: string
+                          latestAvailableVersion:
+                            type: string
                           name:
                             type: string
                           status:
@@ -312,6 +330,8 @@ spec:
                       updatedAt:
                         format: date-time
                         type: string
+                      versionUpToDate:
+                        type: boolean
                     required:
                     - configuration
                     - reserved
