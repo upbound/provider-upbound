@@ -94,8 +94,13 @@ spec:
               endpoint:
                 description: Upbound endpoint. Defaults to https://upbound.io
                 type: string
+              organization:
+                description: Upbound Organization.
+                minLength: 1
+                type: string
             required:
             - credentials
+            - organization
             type: object
           status:
             description: A ProviderConfigStatus reflects the observed state of a ProviderConfig.
