@@ -179,6 +179,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{
 			"token": []byte(fmt.Sprint(resp.DataSet.Meta["jwt"])),
+			"id":    []byte(fmt.Sprint(resp.ID.String())),
 		},
 	}, nil
 }
