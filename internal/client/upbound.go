@@ -103,7 +103,7 @@ func getCredentials(ctx context.Context, kube client.Client, pc *v1alpha1.Provid
 	return resource.CommonCredentialExtractor(ctx, pc.Spec.Credentials.Source, kube, pc.Spec.Credentials.CommonCredentialSelectors)
 }
 
-func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.ProviderConfig) (*Profile, error) {
+func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.ProviderConfig) (*Profile, error) { //nolint:gocyclo
 	// use this shared to avoid get new session-token for each reconcile
 	mu.Lock()
 	defer mu.Unlock()
@@ -117,7 +117,7 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 			return nil, errors.Wrap(err, errSessionTokenParse)
 		}
 
-		if claims.ExpiresAt > 0 && time.Now().Unix() > int64(claims.ExpiresAt) {
+		if claims.ExpiresAt > 0 && time.Now().Unix() > claims.ExpiresAt {
 			profileMemory.Session = ""
 			return nil, errors.New(errSessionTokenExpired)
 		}
@@ -125,9 +125,8 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 		return &profileMemory, nil
 	}
 
-	profile := Profile{}
 	cliConfig := &CLIConfig{}
-	profile = cliConfig.Upbound.Profiles[cliConfig.Upbound.Default]
+	profile := cliConfig.Upbound.Profiles[cliConfig.Upbound.Default]
 
 	auth, err := constructAuth(string(data))
 	if err != nil {
@@ -139,7 +138,7 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
-	loginURL := createLoginURL(DefaultAPIEndpoint, pc)
+	loginURL := createLoginURL(DefaultAPIEndpoint)
 	req, err := createLoginRequest(ctx, loginURL, jsonStr)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
@@ -169,7 +168,7 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 	return &profile, nil
 }
 
-func createLoginURL(apiEndpoint *url.URL, pc *v1alpha1.ProviderConfig) *url.URL {
+func createLoginURL(apiEndpoint *url.URL) *url.URL {
 	loginURL := &url.URL{
 		Scheme: apiEndpoint.Scheme,
 		Host:   apiEndpoint.Host,
