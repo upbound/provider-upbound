@@ -33,6 +33,11 @@ type ProviderConfigSpec struct {
 	// Upbound endpoint.
 	// Defaults to https://upbound.io
 	Endpoint *string `json:"endpoint,omitempty"`
+
+	// Upbound Organization.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Organization string `json:"organization"`
 }
 
 // ProviderCredentials required to authenticate.

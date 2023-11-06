@@ -60,3 +60,10 @@ const (
 	UserProfileType  ProfileType = "user"
 	TokenProfileType ProfileType = "token"
 )
+
+// auth is the request body sent to authenticate a user or token.
+type auth struct {
+	ID       string `json:"id"`
+	Password string `json:"password"`
+	Remember bool   `json:"remember"`
+}
