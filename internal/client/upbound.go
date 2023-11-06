@@ -117,7 +117,11 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 			return nil, errors.Wrap(err, errSessionTokenParse)
 		}
 
-		if claims.ExpiresAt > 0 && time.Now().Unix() > claims.ExpiresAt {
+		// Check if the token expiration time (claims.ExpiresAt) is greater than 0
+		// and if the current Unix time (time.Now().Unix()) is greater than 10 minutes
+		// before the token expires (claims.ExpiresAt - 10 minutes). This condition is
+		// used to determine if the token is close to expiration and requires refreshing.
+		if claims.ExpiresAt > 0 && time.Now().Unix() > claims.ExpiresAt-10*60 {
 			profileMemory.Session = ""
 			return nil, errors.New(errSessionTokenExpired)
 		}
