@@ -133,16 +133,25 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotControlPlaneAuth)
 	}
 
+	if meta.WasDeleted(cr) && cr.Spec.ForProvider.TokenSecretRef != nil {
+		return managed.ExternalObservation{
+			ResourceExists: false,
+		}, nil
+	}
+
 	if meta.GetExternalName(cr) == "" {
 		return managed.ExternalObservation{}, nil
 	}
-	uid, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
-	}
-	_, err = c.tokens.Get(ctx, uid)
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
+
+	if cr.Spec.ForProvider.TokenSecretRef == nil {
+		uid, err := uuid.Parse(meta.GetExternalName(cr))
+		if err != nil {
+			return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
+		}
+		_, err = c.tokens.Get(ctx, uid)
+		if err != nil {
+			return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
+		}
 	}
 
 	cr.Status.SetConditions(v1.Available())
@@ -160,29 +169,39 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotControlPlaneAuth)
 	}
 
-	userID, err := upclient.ExtractUserIDFromToken(c.profile.Session)
-	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "unable to retrieve userId from token")
-	}
+	if cr.Spec.ForProvider.TokenSecretRef == nil {
+		userID, err := upclient.ExtractUserIDFromToken(c.profile.Session)
+		if err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "unable to retrieve userId from token")
+		}
 
-	t, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
-		Attributes: tokens.TokenAttributes{
-			Name: fmt.Sprintf("%.64s", cr.Spec.ForProvider.ControlPlaneName+"-"+string(cr.UID)),
-		},
-		Relationships: tokens.TokenRelationships{
-			Owner: tokens.TokenOwner{
-				Data: tokens.TokenOwnerData{
-					Type: tokens.TokenOwnerUser,
-					ID:   userID,
+		t, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
+			Attributes: tokens.TokenAttributes{
+				Name: fmt.Sprintf("%.64s", cr.Spec.ForProvider.ControlPlaneName+"-"+string(cr.UID)),
+			},
+			Relationships: tokens.TokenRelationships{
+				Owner: tokens.TokenOwner{
+					Data: tokens.TokenOwnerData{
+						Type: tokens.TokenOwnerUser,
+						ID:   userID,
+					},
 				},
 			},
-		},
-	})
-	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create token")
+		})
+		if err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "cannot create token")
+		}
+		kubeToken = t.DataSet.Meta["jwt"].(string)
+		meta.SetExternalName(cr, t.DataSet.ID.String())
+	} else {
+		secret, err := controlplaneauth.GetSecret(ctx, c.kube, cr.Spec.ForProvider.TokenSecretRef.SecretReference)
+		if resource.IgnoreNotFound(err) != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "cannot read token")
+		}
+
+		kubeToken = string(secret.Data[cr.Spec.ForProvider.TokenSecretRef.Key])
+		meta.SetExternalName(cr, cr.Name)
 	}
-	kubeToken = t.DataSet.Meta["jwt"].(string)
-	meta.SetExternalName(cr, t.DataSet.ID.String())
 
 	config, err := controlplaneauth.BuildControlPlaneKubeconfig(
 		cr.Spec.ForProvider.OrganizationName,
@@ -209,9 +228,15 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotControlPlaneAuth)
 	}
-	uid, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return errors.Wrap(err, "cannot parse external name as UUID")
+
+	if cr.Spec.ForProvider.TokenSecretRef == nil {
+		uid, err := uuid.Parse(meta.GetExternalName(cr))
+		if err != nil {
+			return errors.Wrap(err, "cannot parse external name as UUID")
+		}
+		return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
+	} else {
+		return nil
 	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
+
 }

@@ -22,6 +22,8 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 type ControlPlaneAuthParameters struct {
@@ -46,6 +48,11 @@ type ControlPlaneAuthParameters struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	OrganizationName string `json:"organizationName"`
+
+	// A Token ConnectionSecret is referenced to serve as
+	// the authentication token for a KubeConfig
+	// +optional
+	TokenSecretRef *xpv1.SecretKeySelector `json:"tokenSecretRef,omitempty"`
 }
 
 type ControlPlaneAuthObservation struct{}
