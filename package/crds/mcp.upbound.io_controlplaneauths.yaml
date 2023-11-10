@@ -153,6 +153,24 @@ spec:
                       to which the control plane belongs.
                     minLength: 1
                     type: string
+                  tokenSecretRef:
+                    description: A Token ConnectionSecret is referenced to serve as
+                      the authentication token for a KubeConfig
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
                 required:
                 - organizationName
                 type: object

@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -89,4 +90,10 @@ func BuildControlPlaneKubeconfig(organization, controlplane, token string) (stri
 	configString = strings.TrimSpace(configString)
 
 	return configString, nil
+}
+
+func GetSecret(ctx context.Context, kube client.Client, ref xpv1.SecretReference) (*corev1.Secret, error) {
+	secret := new(corev1.Secret)
+	err := kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}, secret)
+	return secret, err
 }
