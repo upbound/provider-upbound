@@ -77,16 +77,16 @@ type ControlPlaneResponse struct {
 
 // ControlPlane describes a control plane.
 type ControlPlaneObs struct {
-	ID              string                    `json:"id,omitempty"`
-	Name            string                    `json:"name,omitempty"`
-	Description     string                    `json:"description,omitempty"`
-	CreatorID       uint                      `json:"creatorId,omitempty"`
-	Reserved        bool                      `json:"reserved"`
-	CreatedAt       *metav1.Time              `json:"createdAt,omitempty"`
-	UpdatedAt       *metav1.Time              `json:"updatedAt,omitempty"`
-	VersionUpToDate *bool                     `json:"versionUpToDate,omitempty"`
-	ExpiresAt       metav1.Time               `json:"expiresAt,omitempty"`
-	Configuration   ControlPlaneConfiguration `json:"configuration"`
+	ID              string                     `json:"id,omitempty"`
+	Name            string                     `json:"name,omitempty"`
+	Description     string                     `json:"description,omitempty"`
+	CreatorID       uint                       `json:"creatorId,omitempty"`
+	Reserved        bool                       `json:"reserved"`
+	CreatedAt       *metav1.Time               `json:"createdAt,omitempty"`
+	UpdatedAt       *metav1.Time               `json:"updatedAt,omitempty"`
+	VersionUpToDate *bool                      `json:"versionUpToDate,omitempty"`
+	ExpiresAt       metav1.Time                `json:"expiresAt,omitempty"`
+	Configuration   *ControlPlaneConfiguration `json:"configuration,omitempty"`
 }
 
 // ControlPlaneConfiguration represents an instance of a Configuration associated with a
