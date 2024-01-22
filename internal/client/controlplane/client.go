@@ -68,7 +68,7 @@ func StatusFromResponse(resp *controlplanes.ControlPlaneResponse, latestAvailabl
 
 	status := v1alpha1.ControlPlaneResponse{
 		ControlPlane: v1alpha1.ControlPlaneObs{
-			Configuration: v1alpha1.ControlPlaneConfiguration{},
+			Configuration: &v1alpha1.ControlPlaneConfiguration{},
 		},
 	}
 
