@@ -102,9 +102,9 @@ spec:
                     minLength: 1
                     type: string
                   version:
-                    description: EngineVersion is the version of the control plane.
-                      If it is nil, the last available version given by configuration
-                      will be used.
+                    description: Version is the version of the control plane. If it
+                      is nil, the last available version given by configuration will
+                      be used.
                     type: string
                 required:
                 - configuration
