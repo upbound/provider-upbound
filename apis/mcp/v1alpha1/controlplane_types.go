@@ -49,7 +49,7 @@ type ControlPlaneParameters struct {
 	// By default, this parameter is turned off.
 	AutoUpdate *bool `json:"autoUpdate,omitempty"`
 
-	// EngineVersion is the version of the control plane.
+	// Version is the version of the control plane.
 	// If it is nil, the last available version given by configuration will be used.
 	// +optional
 	Version *string `json:"version,omitempty"`
