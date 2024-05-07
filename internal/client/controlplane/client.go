@@ -17,6 +17,7 @@ limitations under the License.
 package controlplane
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -128,23 +129,45 @@ func CompareVersions(version1, version2 string) int { //nolint:gocyclo
 		return 0
 	}
 
-	versionCmp := semver1.Compare(semver2)
-
-	if versionCmp == 0 {
-		// Versions are equal based on semantic versioning,
-		// compare the package metadata parts
-		packageMetadata1 := getPackageMetadata(version1)
-		packageMetadata2 := getPackageMetadata(version2)
-		return strings.Compare(packageMetadata1, packageMetadata2)
+	if versionCmp := semver1.Compare(semver2); versionCmp != 0 {
+		return versionCmp
 	}
 
-	return versionCmp
+	// Versions are equal based on semantic versioning, compare the package
+	// metadata parts, specifically looking at commit numbers as commit
+	// SHAs can change due to rebasing. This is at best a "best effort"
+	// approach to derive differences between versions given in the case
+	// of rebasing commit numbers could change in addition to SHAs (e.g.
+	// dropping commits, etc).
+	commitNum1 := getCommitNumber(version1)
+	commitNum2 := getCommitNumber(version2)
+	return compare(commitNum1, commitNum2)
 }
 
-func getPackageMetadata(version string) string {
+// getCommitNumber will derive the commit number (int) from the given semver
+// metadata.
+func getCommitNumber(version string) int {
 	parts := strings.SplitN(version, "+", 2)
-	if len(parts) == 2 {
-		return parts[1]
+	if len(parts) != 2 {
+		return -1
 	}
-	return ""
+	parts = strings.SplitN(parts[1], ".", 2)
+	if len(parts) != 2 {
+		return -1
+	}
+	res, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return -1
+	}
+	return res
+}
+
+func compare(a, b int) int {
+	if a == b {
+		return 0
+	}
+	if a > b {
+		return 1
+	}
+	return -1
 }

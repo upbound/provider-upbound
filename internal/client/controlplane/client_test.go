@@ -14,6 +14,7 @@ func TestCompareVersionsWithBuildMetadata(t *testing.T) {
 		{"v0.0.0+13.7104e10", "v0.0.0+13.7104e10", 0},
 		{"v0.0.0+14.6b092f3", "v0.0.0+13.7104e10", 1},
 		{"v0.0.0+13.7104e10", "v0.0.0+14.6b092f3", -1},
+		{"v0.0.0+10.7104e10", "v0.0.0+9.6b092f3", 1},
 	}
 
 	for _, tc := range testCases {
