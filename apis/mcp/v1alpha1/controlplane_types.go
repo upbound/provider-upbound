@@ -31,9 +31,8 @@ type ControlPlaneParameters struct {
 	Description *string `json:"description,omitempty"`
 
 	// Configuration is the name of the predefined configuration
-	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	Configuration string `json:"configuration"`
+	Configuration *string `json:"configuration,omitempty"`
 
 	// OrganizationName is the name of the organization to which the control plane
 	// belongs.
