@@ -307,6 +307,11 @@ func (in *ControlPlaneParameters) DeepCopyInto(out *ControlPlaneParameters) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Configuration != nil {
+		in, out := &in.Configuration, &out.Configuration
+		*out = new(string)
+		**out = **in
+	}
 	if in.AutoUpdate != nil {
 		in, out := &in.AutoUpdate, &out.AutoUpdate
 		*out = new(bool)

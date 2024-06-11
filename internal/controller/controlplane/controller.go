@@ -142,7 +142,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get control plane")
 	}
 
-	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, pointer.StringDeref(&cr.Spec.ForProvider.Configuration, ""))
+	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, pointer.StringDeref(cr.Spec.ForProvider.Configuration, ""))
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get configuration")
 	}
@@ -199,7 +199,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotControlPlane)
 	}
-	configuration := pointer.StringDeref(&cr.Spec.ForProvider.Configuration, "")
+	configuration := pointer.StringDeref(cr.Spec.ForProvider.Configuration, "")
 	var configurationUuid uuid.UUID
 
 	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, configuration)

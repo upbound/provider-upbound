@@ -107,7 +107,6 @@ spec:
                       be used.
                     type: string
                 required:
-                - configuration
                 - organizationName
                 type: object
               managementPolicies:
