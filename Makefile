@@ -25,7 +25,7 @@ GO111MODULE = on
 # ====================================================================================
 # Setup Kubernetes tools
 
-UP_VERSION = v0.15.0
+UP_VERSION = v0.38.1
 UP_CHANNEL = stable
 -include build/makelib/k8s_tools.mk
 
@@ -89,12 +89,12 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/provider --debug
 
-dev: $(KIND) $(KUBECTL)
+dev: $(KIND) $(KUBECTL) $(HELM)
 	@$(INFO) Creating kind cluster
 	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
-	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
+	@$(HELM) install crossplane crossplane-stable/crossplane --namespace crossplane-system --create-namespace
 	@$(INFO) Installing Provider Upbound CRDs
 	@$(KUBECTL) apply -R -f package/crds
 	@$(INFO) Starting Provider Upbound controllers

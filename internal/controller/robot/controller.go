@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -115,6 +115,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -153,7 +158,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRobot)
 	}
-	id := pointer.StringDeref(cr.Spec.ForProvider.Owner.ID, "")
+	id := ptr.Deref(cr.Spec.ForProvider.Owner.ID, "")
 	if id == "" {
 		if cr.Spec.ForProvider.Owner.Name == nil {
 			return managed.ExternalCreation{}, errors.New("organization name or id must be specified")
@@ -162,7 +167,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		if err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "cannot get organization id")
 		}
-		id = strconv.Itoa(int(o))
+		id = strconv.FormatUint(uint64(o), 10)
 	}
 
 	resp, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
@@ -191,15 +196,15 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.Robot)
 	if !ok {
-		return errors.New(errNotRobot)
+		return managed.ExternalDelete{}, errors.New(errNotRobot)
 	}
 
 	id, err := uuid.Parse(meta.GetExternalName(cr))
 	if err != nil {
-		return errors.Wrap(err, "cannot parse external name as a uuid")
+		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as a uuid")
 	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.robots.Delete(ctx, id)), "cannot delete robot")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.robots.Delete(ctx, id)), "cannot delete robot")
 }

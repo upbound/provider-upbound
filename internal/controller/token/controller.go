@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -117,6 +117,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -164,7 +169,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			Owner: tokens.TokenOwner{
 				Data: tokens.TokenOwnerData{
 					Type: tokens.TokenOwnerType(cr.Spec.ForProvider.Owner.Type),
-					ID:   pointer.StringDeref(cr.Spec.ForProvider.Owner.ID, ""),
+					ID:   ptr.Deref(cr.Spec.ForProvider.Owner.ID, ""),
 				},
 			},
 		},
@@ -198,14 +203,14 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, errors.Wrap(err, "failed to update token")
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.Token)
 	if !ok {
-		return errors.New(errNotToken)
+		return managed.ExternalDelete{}, errors.New(errNotToken)
 	}
 	uid, err := uuid.Parse(meta.GetExternalName(cr))
 	if err != nil {
-		return errors.Wrap(err, "cannot parse external name as UUID")
+		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as UUID")
 	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
 }

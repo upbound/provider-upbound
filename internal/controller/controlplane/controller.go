@@ -31,7 +31,7 @@ import (
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/configurations"
 	"github.com/upbound/up-sdk-go/service/controlplanes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -118,6 +118,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -142,13 +147,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get control plane")
 	}
 
-	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, pointer.StringDeref(&cr.Spec.ForProvider.Configuration, ""))
+	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, ptr.Deref(&cr.Spec.ForProvider.Configuration, ""))
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get configuration")
 	}
 
 	cr.Status.AtProvider = controlplane.StatusFromResponse(resp, o.LatestVersion)
-	up2date := pointer.StringDeref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "") == pointer.StringDeref(cr.Spec.ForProvider.Version, "")
+	up2date := ptr.Deref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "") == ptr.Deref(cr.Spec.ForProvider.Version, "")
 	cr.Status.AtProvider.ControlPlane.VersionUpToDate = &up2date
 
 	// lateInit
@@ -159,8 +164,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// autoUpdate true
 	if cr.Spec.ForProvider.AutoUpdate != nil && *cr.Spec.ForProvider.AutoUpdate && cr.Status.AtProvider.ControlPlane.Configuration.Status == v1alpha1.ConfigurationReady {
-		version := pointer.StringDeref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "")
-		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
+		version := ptr.Deref(cr.Status.AtProvider.ControlPlane.Configuration.LatestAvailableVersion, "")
+		currentVersion := ptr.Deref(resp.ControlPlane.Configuration.CurrentVersion, "")
 
 		if controlplane.CompareVersions(version, currentVersion) == 1 {
 			// set new version
@@ -175,8 +180,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// version update
 	if cr.Spec.ForProvider.Version != nil && cr.Status.AtProvider.ControlPlane.Configuration.Status == v1alpha1.ConfigurationReady {
-		version := pointer.StringDeref(cr.Spec.ForProvider.Version, "")
-		currentVersion := pointer.StringDeref(resp.ControlPlane.Configuration.CurrentVersion, "")
+		version := ptr.Deref(cr.Spec.ForProvider.Version, "")
+		currentVersion := ptr.Deref(resp.ControlPlane.Configuration.CurrentVersion, "")
 
 		if controlplane.CompareVersions(version, currentVersion) != 0 {
 			return managed.ExternalObservation{
@@ -199,7 +204,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotControlPlane)
 	}
-	configuration := pointer.StringDeref(&cr.Spec.ForProvider.Configuration, "")
+	configuration := ptr.Deref(&cr.Spec.ForProvider.Configuration, "")
 	var configurationUuid uuid.UUID
 
 	o, err := c.configurations.Get(ctx, cr.Spec.ForProvider.OrganizationName, configuration)
@@ -210,8 +215,8 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	resp, err := c.controlPlane.Create(ctx, cr.Spec.ForProvider.OrganizationName, &controlplanes.ControlPlaneCreateParameters{
 		Name:            meta.GetExternalName(cr),
-		Description:     pointer.StringDeref(cr.Spec.ForProvider.Description, ""),
-		ConfigurationID: configurationUuid,
+		Description:     ptr.Deref(cr.Spec.ForProvider.Description, ""),
+		ConfigurationID: &configurationUuid,
 	})
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create controlPlane")
@@ -228,20 +233,20 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	params := &controlplane.ApplyParameters{
 		Name:           meta.GetExternalName(cr),
 		Organization:   cr.Spec.ForProvider.OrganizationName,
-		DesiredVersion: pointer.StringDeref(cr.Spec.ForProvider.Version, ""),
+		DesiredVersion: ptr.Deref(cr.Spec.ForProvider.Version, ""),
 	}
 	return managed.ExternalUpdate{}, errors.Wrap(c.localControlPlane.Apply(ctx, params), "cannot apply control plane update")
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.ControlPlane)
 	if !ok {
-		return errors.New(errNotControlPlane)
+		return managed.ExternalDelete{}, errors.New(errNotControlPlane)
 	}
 
 	if cr.Status.AtProvider.Status == v1alpha1.StatusDeleting {
-		return nil
+		return managed.ExternalDelete{}, nil
 	}
 
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlane.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete controlPlane")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlane.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete controlPlane")
 }

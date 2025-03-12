@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
-	"github.com/upbound/up-sdk-go"
+	up "github.com/upbound/up-sdk-go"
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/robots"
 )
@@ -59,7 +59,7 @@ func (c *Client) Get(ctx context.Context, params *GetParameters) (*PermissionRes
 			return &perms.Permissions[i], nil
 		}
 	}
-	return nil, &uperrors.Error{Status: http.StatusNotFound, Title: "NotFound", Detail: pointer.String("permission not found")}
+	return nil, &uperrors.Error{Status: http.StatusNotFound, Title: "NotFound", Detail: ptr.To("permission not found")}
 }
 
 func (c *Client) Apply(ctx context.Context, params *ApplyParameters) error {

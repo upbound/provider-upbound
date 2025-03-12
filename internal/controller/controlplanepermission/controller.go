@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -111,6 +111,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -128,7 +133,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	params := &controlplanepermission.GetParameters{
 		AccountName: cr.Spec.ForProvider.OrganizationName,
-		TeamID:      pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:      ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 	}
 	resp, err := c.controlPlanePermissions.Get(ctx, params)
 	if err != nil {
@@ -167,7 +172,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	params := &controlplanepermission.ApplyParameters{
 		AccountName:      cr.Spec.ForProvider.OrganizationName,
-		TeamID:           pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:           ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 		ControlPlaneName: cr.Spec.ForProvider.ControlPlaneName,
 		Permission:       cr.Spec.ForProvider.Permission,
 	}
@@ -181,22 +186,22 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	params := &controlplanepermission.ApplyParameters{
 		AccountName:      cr.Spec.ForProvider.OrganizationName,
-		TeamID:           pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:           ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 		ControlPlaneName: cr.Spec.ForProvider.ControlPlaneName,
 		Permission:       cr.Spec.ForProvider.Permission,
 	}
 	return managed.ExternalUpdate{}, errors.Wrap(c.controlPlanePermissions.Apply(ctx, params), "cannot apply control plane permission")
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.ControlPlanePermission)
 	if !ok {
-		return errors.New(errNotControlPlanePermission)
+		return managed.ExternalDelete{}, errors.New(errNotControlPlanePermission)
 	}
 	params := &controlplanepermission.DeleteParameters{
 		AccountName:      cr.Spec.ForProvider.OrganizationName,
-		TeamID:           pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:           ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 		ControlPlaneName: cr.Spec.ForProvider.ControlPlaneName,
 	}
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlanePermissions.Delete(ctx, params)), "cannot delete control plane permission")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlanePermissions.Delete(ctx, params)), "cannot delete control plane permission")
 }

@@ -27,7 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
 	uperrors "github.com/upbound/up-sdk-go/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -110,6 +110,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -125,9 +130,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	err := c.repositorypermission.Get(ctx, &repositorypermission.GetParameters{
-		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
-		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 	})
 
 	if err != nil {
@@ -147,16 +152,16 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	err := c.repositorypermission.Create(ctx, &repositorypermission.CreateParameters{
-		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
-		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 		Permission:   cr.Spec.ForProvider.Permission,
 	})
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "failed to create repository permission")
 	}
 
-	meta.SetExternalName(cr, pointer.StringDeref(cr.Spec.ForProvider.Repository, ""))
+	meta.SetExternalName(cr, ptr.Deref(cr.Spec.ForProvider.Repository, ""))
 
 	return managed.ExternalCreation{}, nil
 }
@@ -165,17 +170,17 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.Permission)
 	if !ok {
-		return errors.New(errNotPermission)
+		return managed.ExternalDelete{}, errors.New(errNotPermission)
 	}
 
 	err := c.repositorypermission.Delete(ctx, &repositorypermission.GetParameters{
-		Repository:   pointer.StringDeref(cr.Spec.ForProvider.Repository, ""),
+		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
-		TeamID:       pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 	})
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete repositroy permission")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete repositroy permission")
 
 }

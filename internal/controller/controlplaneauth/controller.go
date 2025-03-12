@@ -118,6 +118,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -223,20 +228,20 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.ControlPlaneAuth)
 	if !ok {
-		return errors.New(errNotControlPlaneAuth)
+		return managed.ExternalDelete{}, errors.New(errNotControlPlaneAuth)
 	}
 
 	if cr.Spec.ForProvider.TokenSecretRef == nil {
 		uid, err := uuid.Parse(meta.GetExternalName(cr))
 		if err != nil {
-			return errors.Wrap(err, "cannot parse external name as UUID")
+			return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as UUID")
 		}
-		return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
+		return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
 	} else {
-		return nil
+		return managed.ExternalDelete{}, nil
 	}
 
 }

@@ -71,13 +71,13 @@ across projects.
 The [provider-upbound](https://github.com/upbound/provider-upbound)
 repository contains most of these settings.
 
-- [ ] Use the [Upbound build](https://github.com/upbound/build) submodule. (see
+- [ ] Use the [Crossplane build](https://github.com/crossplane/build) submodule. (see
   [https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md#establishing-a-development-environment](https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md#establishing-a-development-environment))
 - [ ] Include a
   [Makefile](https://github.com/crossplane/provider-gcp/blob/master/Makefile)
   that supports common build targets.
 - [ ] Use a Golang linter. Example:
-  [https://github.com/crossplane/provider-aws/blob/master/.golangci.yml](https://github.com/crossplane/provider-aws/blob/master/.golangci.yml)
+  [https://github.com/crossplane-contrib/provider-aws/blob/master/.golangci.yml](https://github.com/crossplane/provider-aws/blob/master/.golangci.yml)
 - [ ] Create a [Crossplane
   Package](https://crossplane.io/docs/master/concepts/packages.html)
   configuration (see
