@@ -18,6 +18,7 @@ package team
 
 import (
 	"context"
+	"fmt"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -26,7 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -113,6 +114,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -148,7 +154,11 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotTeam)
 	}
-	orgId := uint(pointer.IntDeref(cr.Spec.ForProvider.OrganizationID, 0))
+	orgIdInt := ptr.Deref(cr.Spec.ForProvider.OrganizationID, 0)
+	if orgIdInt < 0 {
+		return managed.ExternalCreation{}, errors.New(fmt.Sprintf("invalid OrganizationID: cannot convert negative int %d to uint", orgIdInt))
+	}
+	orgId := uint(orgIdInt)
 	if orgId == 0 {
 		if cr.Spec.ForProvider.OrganizationName == nil {
 			return managed.ExternalCreation{}, errors.New("either organizationName or organizationId must be specified")
@@ -178,6 +188,6 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.teams.Delete(ctx, meta.GetExternalName(mg))), "failed to delete team")
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.teams.Delete(ctx, meta.GetExternalName(mg))), "failed to delete team")
 }

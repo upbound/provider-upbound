@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -110,6 +110,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -125,8 +130,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	// NOTE(muvaf): External name annotation is not used since this is an attribute
 	// that binds to resources and the id of both are already under spec.
 
-	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
-	rid := pointer.StringDeref(cr.Spec.ForProvider.RobotID, "")
+	tid := ptr.Deref(cr.Spec.ForProvider.TeamID, "")
+	rid := ptr.Deref(cr.Spec.ForProvider.RobotID, "")
 	if err := c.robotTeamMemberships.Get(ctx, rid, tid); err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot team ids")
 	}
@@ -143,8 +148,8 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRobotTeamMembership)
 	}
-	tid := pointer.StringDeref(cr.Spec.ForProvider.TeamID, "")
-	rid := pointer.StringDeref(cr.Spec.ForProvider.RobotID, "")
+	tid := ptr.Deref(cr.Spec.ForProvider.TeamID, "")
+	rid := ptr.Deref(cr.Spec.ForProvider.RobotID, "")
 	if err := c.robotTeamMemberships.Create(ctx, rid, &robotteammembership.ResourceIdentifier{
 		ID:   tid,
 		Type: robotteammembership.RobotMembershipTypeTeam,
@@ -159,14 +164,14 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.RobotTeamMembership)
 	if !ok {
-		return errors.New(errNotRobotTeamMembership)
+		return managed.ExternalDelete{}, errors.New(errNotRobotTeamMembership)
 	}
-	err := c.robotTeamMemberships.Delete(ctx, pointer.StringDeref(cr.Spec.ForProvider.RobotID, ""), &robotteammembership.DeleteParameters{
-		ID:   pointer.StringDeref(cr.Spec.ForProvider.TeamID, ""),
+	err := c.robotTeamMemberships.Delete(ctx, ptr.Deref(cr.Spec.ForProvider.RobotID, ""), &robotteammembership.DeleteParameters{
+		ID:   ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 		Type: robotteammembership.RobotMembershipTypeTeam,
 	})
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete robot team membership")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete robot team membership")
 }

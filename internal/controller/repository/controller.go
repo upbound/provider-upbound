@@ -113,6 +113,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}, nil
 }
 
+func (e *external) Disconnect(ctx context.Context) error {
+	// If there's nothing special to clean up, just return nil.
+	return nil
+}
+
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
@@ -153,7 +158,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotRepository)
 	}
 
-	err := c.repositories.CreateOrUpdate(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name)
+	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create repository")
 	}
@@ -166,11 +171,11 @@ func (c *external) Update(_ context.Context, _ resource.Managed) (managed.Extern
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.Repository)
 	if !ok {
-		return errors.New(errNotRepository)
+		return managed.ExternalDelete{}, errors.New(errNotRepository)
 	}
 
-	return errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.repositories.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete repository")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.repositories.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete repository")
 }

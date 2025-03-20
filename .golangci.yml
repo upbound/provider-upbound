@@ -1,12 +1,9 @@
 run:
   deadline: 2m
 
-  skip-files:
-  - "zz_generated\\..+\\.go$"
-
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
-  format: colored-line-number
+  formats: colored-line-number
 
 linters-settings:
   errcheck:
@@ -21,7 +18,7 @@ linters-settings:
     # [deprecated] comma-separated list of pairs of the form pkg:regex
     # the regex is used to ignore names within pkg. (default "fmt:.*").
     # see https://github.com/kisielk/errcheck#the-deprecated-method for details
-    ignore: fmt:.*,io/ioutil:^Read.*
+    exclude-functions: fmt:.*,io/ioutil:^Read.*
 
   govet:
     # report about shadowed variables
@@ -104,17 +101,19 @@ linters-settings:
 
 linters:
   enable:
-    - megacheck
     - govet
     - gocyclo
     - gocritic
     - goconst
     - goimports
     - gofmt  # We enable this as well as goimports for its simplify mode.
+    - gosimple
     - prealloc
     - unconvert
     - misspell
     - nakedret
+    - staticcheck
+    - unused
 
   presets:
     - bugs
@@ -171,6 +170,9 @@ issues:
       linters:
       - gosec
       - gas
+
+  exclude-files:
+    - "zz_generated\\..+\\.go$"
 
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
