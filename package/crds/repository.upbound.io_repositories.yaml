@@ -83,6 +83,13 @@ spec:
                       belongs.
                     minLength: 1
                     type: string
+                  public:
+                    description: Public determines the visibility of the repository
+                    type: boolean
+                  publish:
+                    description: Publish enables Upbound Marketplace listing page
+                      for the new repository
+                    type: boolean
                 required:
                 - name
                 - organizationName
@@ -274,6 +281,10 @@ spec:
                     type: boolean
                   public:
                     type: boolean
+                  publishPolicy:
+                    description: PublishingPolicy determines whether packages will
+                      be indexed
+                    type: string
                   repositoryId:
                     type: integer
                   type:
@@ -288,6 +299,7 @@ spec:
                 - name
                 - official
                 - public
+                - publishPolicy
                 - repositoryId
                 type: object
               conditions:

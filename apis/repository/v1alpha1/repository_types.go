@@ -36,6 +36,14 @@ type RepositoryParameters struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	OrganizationName string `json:"organizationName"`
+
+	// Public determines the visibility of the repository
+	// +kubebuilder:validation:Optional
+	Public bool `json:"public"`
+
+	// Publish enables Upbound Marketplace listing page for the new repository
+	// +kubebuilder:validation:Optional
+	Publish bool `json:"publish"`
 }
 
 // RepositoryObservation are the observable fields of a Repository.
@@ -45,6 +53,7 @@ type RepositoryObservation struct {
 	AccountID      uint                `json:"accountId"`
 	Type           *sdk.RepositoryType `json:"type,omitempty"`
 	Public         bool                `json:"public"`
+	Publish        *sdk.PublishPolicy  `json:"publishPolicy"`
 	Official       bool                `json:"official"`
 	CurrentVersion *string             `json:"currentVersion,omitempty"`
 	CreatedAt      metav1.Time         `json:"createdAt"`

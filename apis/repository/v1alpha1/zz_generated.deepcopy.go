@@ -246,6 +246,11 @@ func (in *RepositoryObservation) DeepCopyInto(out *RepositoryObservation) {
 		*out = new(repositories.RepositoryType)
 		**out = **in
 	}
+	if in.Publish != nil {
+		in, out := &in.Publish, &out.Publish
+		*out = new(repositories.PublishPolicy)
+		**out = **in
+	}
 	if in.CurrentVersion != nil {
 		in, out := &in.CurrentVersion, &out.CurrentVersion
 		*out = new(string)

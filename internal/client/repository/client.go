@@ -34,6 +34,7 @@ func StatusFromResponse(resp repositories.Repository) v1alpha1.RepositoryObserva
 	status.Name = resp.Name
 	status.Official = resp.Official
 	status.Public = resp.Public
+	status.Publish = resp.Publish
 	status.RepositoryID = resp.RepositoryID
 	status.Type = resp.Type
 	if resp.UpdatedAt != nil {
