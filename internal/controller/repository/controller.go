@@ -110,7 +110,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		repositories: repositories.NewClient(cfg),
+		repositories: &sdkClient{upstream: repos.NewClient(cfg)},
 	}, nil
 }
 
@@ -122,7 +122,7 @@ func (e *external) Disconnect(ctx context.Context) error {
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	repositories *repositories.Client
+	repositories RepoClient
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
