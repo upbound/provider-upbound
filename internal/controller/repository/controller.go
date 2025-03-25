@@ -26,6 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/pkg/errors"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -109,7 +110,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		repositories: repositories.NewClient(cfg),
+		repositories: &sdkClient{upstream: repos.NewClient(cfg)},
 	}, nil
 }
 
@@ -121,7 +122,7 @@ func (e *external) Disconnect(ctx context.Context) error {
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	repositories *repositories.Client
+	repositories RepoClient
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -146,9 +147,16 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.Status.SetConditions(v1.Available())
 	cr.Status.AtProvider = repository.StatusFromResponse(repoList.Repositories[0])
 
+	publishPolicy := repositories.PublishPolicy("draft")
+	if cr.Spec.ForProvider.Publish {
+		publishPolicy = repositories.PublishPolicy("publish")
+	}
+
+	resourceUpToDate := cr.Spec.ForProvider.Public == resp.Public || ptr.Deref(resp.Publish, repositories.PublishPolicy("")) == publishPolicy
+
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: true,
+		ResourceUpToDate: resourceUpToDate,
 	}, nil
 }
 
@@ -157,8 +165,9 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRepository)
 	}
-
-	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name)
+	visibility := createOrUpdatePublic(cr.Spec.ForProvider.Public)
+	publishPolicy := createOrUpdatePublish(cr.Spec.ForProvider.Publish)
+	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create repository")
 	}
@@ -166,8 +175,19 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
-	// There is no Update repositories in repository API.
+func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*v1alpha1.Repository)
+	if !ok {
+		return managed.ExternalUpdate{}, errors.New(errNotRepository)
+	}
+	visibility := createOrUpdatePublic(cr.Spec.ForProvider.Public)
+	publishPolicy := createOrUpdatePublish(cr.Spec.ForProvider.Publish)
+
+	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update repository")
+	}
+
 	return managed.ExternalUpdate{}, nil
 }
 
@@ -178,4 +198,20 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.repositories.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete repository")
+}
+
+func createOrUpdatePublic(isPublic bool) repositories.CreateOrUpdateOption {
+	private := repositories.WithPublic()
+	if !isPublic {
+		private = repositories.WithPrivate()
+	}
+	return private
+}
+
+func createOrUpdatePublish(publish bool) repositories.CreateOrUpdateOption {
+	publishPolicy := repositories.WithDraft()
+	if publish {
+		publishPolicy = repositories.WithPublish()
+	}
+	return publishPolicy
 }
