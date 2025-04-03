@@ -1,0 +1,408 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: backupschedules.spaces.upbound.io
+spec:
+  group: spaces.upbound.io
+  names:
+    categories:
+    - spaces
+    kind: BackupSchedule
+    listKind: BackupScheduleList
+    plural: backupschedules
+    singular: backupschedule
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.schedule
+      name: Schedule
+      type: string
+    - jsonPath: .status.lastBackup
+      name: LastBackup
+      type: date
+    - jsonPath: .spec.ttl
+      name: TTL
+      type: string
+    - jsonPath: .spec.controlPlane
+      name: ControlPlane
+      type: string
+    - jsonPath: .spec.suspend
+      name: Suspended
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: BackupSchedule represents a single ControlPlane schedule for
+          Backups.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: BackupScheduleSpec defines a backup schedule over a set of
+              ControlPlanes.
+            properties:
+              configRef:
+                description: |-
+                  ConfigRef is a reference to the backup configuration.
+                  ApiGroup is optional and defaults to "spaces.upbound.io".
+                  Kind is required, and the only supported value is "SharedBackupConfig" at
+                  the moment.
+                  Name is required.
+                properties:
+                  apiGroup:
+                    description: APIGroup is the group for the resource being referenced.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced.
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced.
+                    minLength: 1
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: backup config ref must be a reference to a SharedBackupConfig
+                  rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
+                    && self.kind == 'SharedBackupConfig'
+                - message: backup config ref must have a name
+                  rule: size(self.name) > 0
+              controlPlane:
+                description: |-
+                  ControlPlane is the name of the ControlPlane to which the schedule
+                  applies.
+                  Requires "get" permission on the referenced ControlPlane.
+                type: string
+                x-kubernetes-validations:
+                - message: target can not be changed after creation
+                  rule: self == oldSelf
+              deletionPolicy:
+                default: Orphan
+                description: DeletionPolicy is the policy for the backup.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              excludedResources:
+                description: |-
+                  ExcludedResources is a slice of resource names that are not
+                  included in the backup. Used to filter the included extra resources.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              schedule:
+                description: Schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                minLength: 1
+                type: string
+              suspend:
+                description: |-
+                  Suspend specifies whether the schedule is suspended. If true, no
+                  Backups will be created, but running backups will be allowed to
+                  complete.
+                type: boolean
+              ttl:
+                description: |-
+                  TTL is the time to live for the backup. After this time, the backup
+                  will be eligible for garbage collection. If not set, the backup will
+                  not be garbage collected.
+                type: string
+              useOwnerReferencesInBackup:
+                description: |-
+                  UseOwnerReferencesBackup specifies whether an ownership chain should be
+                  established between this resource and the Backup it creates.
+                  If set to true, the Backup will be garbage collected when this resource
+                  is deleted.
+                type: boolean
+            required:
+            - configRef
+            - controlPlane
+            - schedule
+            type: object
+          status:
+            description: BackupScheduleStatus represents the observed state of a BackupSchedule.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              lastBackup:
+                description: |-
+                  LastBackup is the last time a Backup was run for this
+                  Schedule schedule
+                format: date-time
+                type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.schedule
+      name: Schedule
+      type: string
+    - jsonPath: .status.lastBackup
+      name: LastBackup
+      type: date
+    - jsonPath: .spec.ttl
+      name: TTL
+      type: string
+    - jsonPath: .spec.controlPlane
+      name: ControlPlane
+      type: string
+    - jsonPath: .spec.suspend
+      name: Suspended
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: BackupSchedule represents a single ControlPlane schedule for
+          Backups.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: BackupScheduleSpec defines a backup schedule over a set of
+              ControlPlanes.
+            properties:
+              configRef:
+                description: |-
+                  ConfigRef is a reference to the backup configuration.
+                  ApiGroup is optional and defaults to "spaces.upbound.io".
+                  Kind is required, and the only supported value is "SharedBackupConfig" at
+                  the moment.
+                  Name is required.
+                properties:
+                  apiGroup:
+                    description: APIGroup is the group for the resource being referenced.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced.
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced.
+                    minLength: 1
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: backup config ref must be a reference to a SharedBackupConfig
+                  rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
+                    && self.kind == 'SharedBackupConfig'
+                - message: backup config ref must have a name
+                  rule: size(self.name) > 0
+              controlPlane:
+                description: |-
+                  ControlPlane is the name of the ControlPlane to which the schedule
+                  applies.
+                  Requires "get" permission on the referenced ControlPlane.
+                type: string
+                x-kubernetes-validations:
+                - message: target can not be changed after creation
+                  rule: self == oldSelf
+              deletionPolicy:
+                default: Orphan
+                description: DeletionPolicy is the policy for the backup.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              excludedResources:
+                description: |-
+                  ExcludedResources is a slice of resource names that are not
+                  included in the backup. Used to filter the included extra resources.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              schedule:
+                description: Schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                minLength: 1
+                type: string
+              suspend:
+                description: |-
+                  Suspend specifies whether the schedule is suspended. If true, no
+                  Backups will be created, but running backups will be allowed to
+                  complete.
+                type: boolean
+              ttl:
+                description: |-
+                  TTL is the time to live for the backup. After this time, the backup
+                  will be eligible for garbage collection. If not set, the backup will
+                  not be garbage collected.
+                type: string
+              useOwnerReferencesInBackup:
+                description: |-
+                  UseOwnerReferencesBackup specifies whether an ownership chain should be
+                  established between this resource and the Backup it creates.
+                  If set to true, the Backup will be garbage collected when this resource
+                  is deleted.
+                type: boolean
+            required:
+            - configRef
+            - controlPlane
+            - schedule
+            type: object
+          status:
+            description: BackupScheduleStatus represents the observed state of a BackupSchedule.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              lastBackup:
+                description: |-
+                  LastBackup is the last time a Backup was run for this
+                  Schedule schedule
+                format: date-time
+                type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}

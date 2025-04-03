@@ -1,0 +1,564 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: sharedbackups.spaces.upbound.io
+spec:
+  group: spaces.upbound.io
+  names:
+    categories:
+    - spaces
+    kind: SharedBackup
+    listKind: SharedBackupList
+    plural: sharedbackups
+    singular: sharedbackup
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/completed
+      name: Completed
+      type: string
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/failed
+      name: Failed
+      type: string
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/provisioned
+      name: Provisioned
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SharedBackup defines a backup over a set of ControlPlanes.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SharedBackupSpec defines a backup over a set of ControlPlanes.
+            properties:
+              configRef:
+                description: |-
+                  ConfigRef is a reference to the backup configuration.
+                  ApiGroup is optional and defaults to "spaces.upbound.io".
+                  Kind is required, and the only supported value is "SharedBackupConfig" at
+                  the moment.
+                  Name is required.
+                properties:
+                  apiGroup:
+                    description: APIGroup is the group for the resource being referenced.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced.
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced.
+                    minLength: 1
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: backup config ref must be a reference to a SharedBackupConfig
+                  rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
+                    && self.kind == 'SharedBackupConfig'
+                - message: backup config ref must have a name
+                  rule: size(self.name) > 0
+              controlPlaneSelector:
+                description: |-
+                  ControlPlaneSelector defines the selector for ControlPlanes to backup.
+                  Requires "backup" permission on all ControlPlanes in the same namespace.
+                properties:
+                  labelSelectors:
+                    description: |-
+                      A resource is matched if any of the label selector matches.
+                      In case when the list is empty, resource is matched too.
+                    items:
+                      description: |-
+                        A label selector is a label query over a set of resources. The result of matchLabels and
+                        matchExpressions are ANDed. An empty label selector matches all objects. A null
+                        label selector matches no objects.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    type: array
+                  names:
+                    description: |-
+                      A resource is selected if its metadata.name matches any of the provided names.
+                      In case when the list is empty, resource is matched too.
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: set
+                type: object
+                x-kubernetes-validations:
+                - message: either names or a labelSelector must be specified
+                  rule: (has(self.labelSelectors) || has(self.names)) && (size(self.labelSelectors)
+                    > 0 || size(self.names) > 0)
+              deletionPolicy:
+                default: Orphan
+                description: DeletionPolicy is the policy for the backup.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              excludedResources:
+                description: |-
+                  ExcludedResources is a slice of resource names that are not
+                  included in the backup. Used to filter the included extra resources.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              ttl:
+                description: |-
+                  TTL is the time to live for the backup. After this time, the backup
+                  will be eligible for garbage collection. If not set, the backup will
+                  not be garbage collected.
+                type: string
+              useOwnerReferencesInBackup:
+                description: |-
+                  UseOwnerReferencesBackup specifies whether an ownership chain should be
+                  established between this resource and the Backup it creates.
+                  If set to true, the Backup will be garbage collected when this resource
+                  is deleted.
+                type: boolean
+            required:
+            - configRef
+            - controlPlaneSelector
+            type: object
+            x-kubernetes-validations:
+            - message: shared backup ControlPlane selectors can not be changed after
+                creation
+              rule: self.controlPlaneSelector == oldSelf.controlPlaneSelector
+            - message: shared backup excluded resources can not be changed after creation
+              rule: (!has(self.excludedResources) && !has(oldSelf.excludedResources))
+                || self.excludedResources == oldSelf.excludedResources
+          status:
+            description: SharedBackupStatus represents the observed state of a SharedBackup.
+            properties:
+              completed:
+                description: Completed is the list of ControlPlanes for which the
+                  backup completed successfully.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              failed:
+                description: Failed is the list of ControlPlanes for which the backup
+                  failed.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+              phase:
+                default: Pending
+                description: Phase represents the current phase of the SharedBackup.
+                enum:
+                - Pending
+                - InProgress
+                - Failed
+                - Completed
+                type: string
+              selectedControlPlanes:
+                description: SelectedControlPlanes represents the names of the selected
+                  ControlPlanes.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/completed
+      name: Completed
+      type: string
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/failed
+      name: Failed
+      type: string
+    - jsonPath: .metadata.annotations.sharedbackup\.internal\.spaces\.upbound\.io/provisioned
+      name: Provisioned
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: SharedBackup defines a backup over a set of ControlPlanes.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SharedBackupSpec defines a backup over a set of ControlPlanes.
+            properties:
+              configRef:
+                description: |-
+                  ConfigRef is a reference to the backup configuration.
+                  ApiGroup is optional and defaults to "spaces.upbound.io".
+                  Kind is required, and the only supported value is "SharedBackupConfig" at
+                  the moment.
+                  Name is required.
+                properties:
+                  apiGroup:
+                    description: APIGroup is the group for the resource being referenced.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced.
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced.
+                    minLength: 1
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: backup config ref must be a reference to a SharedBackupConfig
+                  rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
+                    && self.kind == 'SharedBackupConfig'
+                - message: backup config ref must have a name
+                  rule: size(self.name) > 0
+              controlPlaneSelector:
+                description: |-
+                  ControlPlaneSelector defines the selector for ControlPlanes to backup.
+                  Requires "backup" permission on all ControlPlanes in the same namespace.
+                properties:
+                  labelSelectors:
+                    description: |-
+                      A resource is matched if any of the label selector matches.
+                      In case when the list is empty, resource is matched too.
+                    items:
+                      description: |-
+                        A label selector is a label query over a set of resources. The result of matchLabels and
+                        matchExpressions are ANDed. An empty label selector matches all objects. A null
+                        label selector matches no objects.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    type: array
+                  names:
+                    description: |-
+                      A resource is selected if its metadata.name matches any of the provided names.
+                      In case when the list is empty, resource is matched too.
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: set
+                type: object
+                x-kubernetes-validations:
+                - message: either names or a labelSelector must be specified
+                  rule: (has(self.labelSelectors) || has(self.names)) && (size(self.labelSelectors)
+                    > 0 || size(self.names) > 0)
+              deletionPolicy:
+                default: Orphan
+                description: DeletionPolicy is the policy for the backup.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              excludedResources:
+                description: |-
+                  ExcludedResources is a slice of resource names that are not
+                  included in the backup. Used to filter the included extra resources.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              ttl:
+                description: |-
+                  TTL is the time to live for the backup. After this time, the backup
+                  will be eligible for garbage collection. If not set, the backup will
+                  not be garbage collected.
+                type: string
+              useOwnerReferencesInBackup:
+                description: |-
+                  UseOwnerReferencesBackup specifies whether an ownership chain should be
+                  established between this resource and the Backup it creates.
+                  If set to true, the Backup will be garbage collected when this resource
+                  is deleted.
+                type: boolean
+            required:
+            - configRef
+            - controlPlaneSelector
+            type: object
+            x-kubernetes-validations:
+            - message: shared backup ControlPlane selectors can not be changed after
+                creation
+              rule: self.controlPlaneSelector == oldSelf.controlPlaneSelector
+            - message: shared backup excluded resources can not be changed after creation
+              rule: (!has(self.excludedResources) && !has(oldSelf.excludedResources))
+                || self.excludedResources == oldSelf.excludedResources
+          status:
+            description: SharedBackupStatus represents the observed state of a SharedBackup.
+            properties:
+              completed:
+                description: Completed is the list of ControlPlanes for which the
+                  backup completed successfully.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              failed:
+                description: Failed is the list of ControlPlanes for which the backup
+                  failed.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+              phase:
+                default: Pending
+                description: Phase represents the current phase of the SharedBackup.
+                enum:
+                - Pending
+                - InProgress
+                - Failed
+                - Completed
+                type: string
+              selectedControlPlanes:
+                description: SelectedControlPlanes represents the names of the selected
+                  ControlPlanes.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}

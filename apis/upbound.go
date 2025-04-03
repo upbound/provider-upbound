@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Upbound Inc.
+Copyright 2025 Upbound Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import (
 
 	iamv1alpha1 "github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	repository1alpha1 "github.com/upbound/provider-upbound/apis/repository/v1alpha1"
+	spacesv1alpha1 "github.com/upbound/provider-upbound/apis/spaces/v1alpha1"
+	spacesv1beta1 "github.com/upbound/provider-upbound/apis/spaces/v1beta1"
 	upboundv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 )
 
@@ -30,6 +32,8 @@ func init() {
 	AddToSchemes = append(AddToSchemes,
 		iamv1alpha1.SchemeBuilder.AddToScheme,
 		repository1alpha1.SchemeBuilder.AddToScheme,
+		spacesv1alpha1.SchemeBuilder.AddToScheme,
+		spacesv1beta1.SchemeBuilder.AddToScheme,
 		upboundv1alpha1.SchemeBuilder.AddToScheme,
 	)
 }
