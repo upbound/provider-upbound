@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: controlplanegroups.spaces.upbound.io
+  name: controlplaneauths.spaces.upbound.io
 spec:
   group: spaces.upbound.io
   names:
@@ -12,10 +12,10 @@ spec:
     - crossplane
     - managed
     - upbound
-    kind: ControlPlaneGroup
-    listKind: ControlPlaneGroupList
-    plural: controlplanegroups
-    singular: controlplanegroup
+    kind: ControlPlaneAuth
+    listKind: ControlPlaneAuthList
+    plural: controlplaneauths
+    singular: controlplaneauth
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Group represents a group of control planes.
+        description: ControlPlaneAuth is used to retrieve Kubeconfig of given ControlPlane.
         properties:
           apiVersion:
             description: |-
@@ -54,7 +54,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ControlPlaneGroupSpec defines the desired state of ControlPlaneGroup.
+            description: ControlPlaneAuthSpec defines the desired state of ControlPlaneAuth
             properties:
               deletionPolicy:
                 default: Delete
@@ -72,23 +72,12 @@ spec:
                 type: string
               forProvider:
                 properties:
-                  name:
+                  controlPlaneName:
                     description: |-
-                      Name is the name to use when creating a control plane group.
-                      optional, if not set, Group name will be used.
-                      When set, it is immutable.
-                    maxLength: 253
-                    minLength: 1
-                    type: string
-                    x-kubernetes-validations:
-                    - message: value is immutable
-                      rule: self == oldSelf
-                  spaceName:
-                    description: |-
-                      SpaceName is the name of the ControlPlane you'd like to fetch Kubeconfig of.
+                      ControlPlaneName is the name of the ControlPlane you'd like to fetch Kubeconfig of.
                       Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
                     type: string
-                  spaceNameRef:
+                  controlPlaneNameRef:
                     description: |-
                       Reference to a ControlPlane to populate controlPlaneName.
                       Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
@@ -124,7 +113,7 @@ spec:
                     required:
                     - name
                     type: object
-                  spaceNameSelector:
+                  controlPlaneNameSelector:
                     description: |-
                       Selector for a ControlPlane to populate controlPlaneName.
                       Either ClusterName, ClusterNameRef or ClusterNameSelector has to be given.
@@ -166,6 +155,33 @@ spec:
                             type: string
                         type: object
                     type: object
+                  organizationName:
+                    description: |-
+                      OrganizationName is the name of the organization to which the control plane
+                      belongs.
+                    minLength: 1
+                    type: string
+                  tokenSecretRef:
+                    description: |-
+                      A Token ConnectionSecret is referenced to serve as
+                      the authentication token for a KubeConfig
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                required:
+                - organizationName
                 type: object
               managementPolicies:
                 default:
@@ -335,25 +351,9 @@ spec:
             - forProvider
             type: object
           status:
-            description: ControlPlaneGroupStatus defines the observed state of the
-              ControlPlaneGroup.
+            description: ControlPlaneAuthStatus defines the observed state of ControlPlaneAuth.
             properties:
               atProvider:
-                description: ControlPlaneGroupObservation are the observable fields
-                  of a Repository.
-                properties:
-                  accountId:
-                    description: it would be nice if we can get the space name/id...
-                    type: integer
-                  createdAt:
-                    format: date-time
-                    type: string
-                  name:
-                    type: string
-                required:
-                - accountId
-                - createdAt
-                - name
                 type: object
               conditions:
                 description: Conditions of the resource.
@@ -409,6 +409,8 @@ spec:
                 format: int64
                 type: integer
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

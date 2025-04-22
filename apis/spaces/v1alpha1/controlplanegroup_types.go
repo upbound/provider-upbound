@@ -58,10 +58,7 @@ func (s *ControlPlaneGroupList) Objects() []client.Object {
 	return objs
 }
 
-// ControlPlaneGroupSpec defines the desired state of ControlPlaneGroup.
-//
-// +kubebuilder:validation:XValidation:rule="has(self.name) == has(oldSelf.name)",message="name is immutable"
-type ControlPlaneGroupSpec struct {
+type ControlPlaneGroupParameters struct {
 	// Name is the name to use when creating a control plane group.
 	// optional, if not set, Group name will be used.
 	// When set, it is immutable.
@@ -70,6 +67,27 @@ type ControlPlaneGroupSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +optional
 	Name string `json:"name,omitempty"`
+
+	// SpaceName is the name of the ControlPlane you'd like to fetch Kubeconfig of.
+	// Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
+	// +crossplane:generate:reference:type=ControlPlane
+	SpaceName string `json:"spaceName,omitempty"`
+
+	// Reference to a ControlPlane to populate controlPlaneName.
+	// Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
+	// +kubebuilder:validation:Optional
+	SpaceNameRef *xpv1.Reference `json:"spaceNameRef,omitempty"`
+
+	// Selector for a ControlPlane to populate controlPlaneName.
+	// Either ClusterName, ClusterNameRef or ClusterNameSelector has to be given.
+	// +kubebuilder:validation:Optional
+	SpaceNameSelector *xpv1.Selector `json:"spaceNameSelector,omitempty"`
+}
+
+// ControlPlaneGroupSpec defines the desired state of ControlPlaneGroup.
+type ControlPlaneGroupSpec struct {
+	xpv1.ResourceSpec `json:",inline"`
+	ForProvider       ControlPlaneGroupParameters `json:"forProvider"`
 }
 
 // ControlPlaneGroupStatus defines the observed state of the ControlPlaneGroup.
