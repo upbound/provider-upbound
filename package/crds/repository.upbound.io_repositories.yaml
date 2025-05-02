@@ -84,9 +84,11 @@ spec:
                     minLength: 1
                     type: string
                   public:
+                    default: false
                     description: Public determines the visibility of the repository
                     type: boolean
                   publish:
+                    default: false
                     description: Publish enables Upbound Marketplace listing page
                       for the new repository
                     type: boolean
