@@ -77,10 +77,10 @@ spec:
                       ControlPlaneName is the name of the ControlPlane you'd like to fetch Kubeconfig of.
                       Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
                     type: string
-                  controlPlaneNameRef:
+                  controlPlaneRef:
                     description: |-
                       Reference to a ControlPlane to populate controlPlaneName.
-                      Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
+                      Either ControlPlaneName, ControlPlaneRef or ControlPlaneSelector has to be given.
                     properties:
                       name:
                         description: Name of the referenced object.
@@ -113,10 +113,10 @@ spec:
                     required:
                     - name
                     type: object
-                  controlPlaneNameSelector:
+                  controlPlaneSelector:
                     description: |-
                       Selector for a ControlPlane to populate controlPlaneName.
-                      Either ClusterName, ClusterNameRef or ClusterNameSelector has to be given.
+                      Either ControlPlaneName, ControlPlaneRef or ControlPlaneSelector has to be given.
                     properties:
                       matchControllerRef:
                         description: |-

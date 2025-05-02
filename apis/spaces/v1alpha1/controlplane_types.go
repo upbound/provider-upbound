@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1beta1
+package v1alpha1
 
 import (
+	"github.com/upbound/provider-upbound/apis/spaces/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -158,24 +160,31 @@ type SecretReference struct {
 	Namespace string `json:"namespace"`
 }
 
-// A ControlPlaneSpec represents the desired state of the ControlPlane.
+// ControlPlaneSpec defines the desired state of ControlPlane.
+type ControlPlaneSpec struct {
+	xpv1.ResourceSpec `json:",inline"`
+	ForProvider       ControlPlaneParameters `json:"forProvider"`
+}
+
+// A ControlPlaneParameters represents the desired state of the ControlPlaneSpec.
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.restore) || has(self.restore)",message="[[GATE:EnableSharedBackup]] restore source can not be unset"
 // +kubebuilder:validation:XValidation:rule="has(oldSelf.restore) || !has(self.restore)",message="[[GATE:EnableSharedBackup]] restore source can not be set after creation"
 // +kubebuilder:validation:XValidation:rule="!has(self.crossplane.autoUpgrade) || self.crossplane.autoUpgrade.channel != \"None\" || self.crossplane.version != \"\"",message="\"version\" cannot be empty when upgrade channel is \"None\""
-type ControlPlaneSpec struct {
-	// WriteConnectionSecretToReference specifies the namespace and name of a
-	// Secret to which any connection details for this managed resource should
-	// be written. Connection details frequently include the endpoint, username,
-	// and password required to connect to the managed resource.
-	// This field is planned to be replaced in a future release in favor of
-	// PublishConnectionDetailsTo. Currently, both could be set independently
-	// and connection details would be published to both without affecting
-	// each other.
-	//
-	// If omitted, it is defaulted to the namespace of the ControlPlane.
-	// Deprecated: Use Hub or Upbound identities instead.
-	// +optional
-	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
+type ControlPlaneParameters struct {
+	// SpaceName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
+	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+	// +crossplane:generate:reference:type=ControlPlane
+	ControlPlaneGroupName string `json:"spaceName,omitempty"`
+
+	// Reference to a ControlPlaneGroup to populate controlPlaneName.
+	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+	// +kubebuilder:validation:Optional
+	ControlPlaneGroupRef *xpv1.Reference `json:"spaceNameRef,omitempty"`
+
+	// Selector for a ControlPlane to populate controlPlaneName.
+	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+	// +kubebuilder:validation:Optional
+	ControlPlaneGroupSelector *xpv1.Selector `json:"spaceNameSelector,omitempty"`
 
 	// Crossplane defines the configuration for Crossplane.
 	Crossplane CrossplaneSpec `json:"crossplane,omitempty"`
@@ -282,28 +291,9 @@ func (mg *ControlPlane) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
-// GetWriteConnectionSecretToReference of this ControlPlane.
-func (mg *ControlPlane) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	if mg.Spec.WriteConnectionSecretToReference == nil {
-		return nil
-	}
-	return &xpv1.SecretReference{
-		Name:      mg.Spec.WriteConnectionSecretToReference.Name,
-		Namespace: mg.Spec.WriteConnectionSecretToReference.Namespace,
-	}
-}
-
 // SetConditions of this ControlPlane.
 func (mg *ControlPlane) SetConditions(c ...xpv1.Condition) {
 	mg.Status.SetConditions(c...)
-}
-
-// SetWriteConnectionSecretToReference of this ControlPlane.
-func (mg *ControlPlane) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
-	mg.Spec.WriteConnectionSecretToReference = &SecretReference{
-		Name:      r.Name,
-		Namespace: r.Namespace,
-	}
 }
 
 // ManagedControlPlane type metadata.
@@ -311,9 +301,12 @@ var (
 	// ControlPlaneKind is the kind of the ControlPlane.
 	ControlPlaneKind = reflect.TypeOf(ControlPlane{}).Name()
 	// ControlPlaneListKind is the kind of a list of ControlPlane.
-	ControlPlaneListKind = reflect.TypeOf(ControlPlaneList{}).Name()
+	ControlPlaneListKind         = reflect.TypeOf(ControlPlaneList{}).Name()
+	ControlPlaneGroupKind        = schema.GroupKind{Group: v1beta1.Group, Kind: ControlPlaneKind}.String()
+	ControlPlaneKindAPIVersion   = ControlPlaneKind + "." + v1beta1.SchemeGroupVersion.String()
+	ControlPlaneGroupVersionKind = v1beta1.SchemeGroupVersion.WithKind(ControlPlaneKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&ControlPlane{}, &ControlPlaneList{})
+	v1beta1.SchemeBuilder.Register(&ControlPlane{}, &ControlPlaneList{})
 }

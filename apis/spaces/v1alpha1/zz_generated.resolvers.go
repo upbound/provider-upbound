@@ -24,6 +24,32 @@ import (
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ResolveReferences of this ControlPlane.
+func (mg *ControlPlane) ResolveReferences(ctx context.Context, c client.Reader) error {
+	r := reference.NewAPIResolver(c, mg)
+
+	var rsp reference.ResolutionResponse
+	var err error
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: mg.Spec.ForProvider.ControlPlaneGroupName,
+		Extract:      reference.ExternalName(),
+		Reference:    mg.Spec.ForProvider.ControlPlaneGroupNameRef,
+		Selector:     mg.Spec.ForProvider.ControlPlaneGroupNameSelector,
+		To: reference.To{
+			List:    &ControlPlaneList{},
+			Managed: &ControlPlane{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ControlPlaneGroupName")
+	}
+	mg.Spec.ForProvider.ControlPlaneGroupName = rsp.ResolvedValue
+	mg.Spec.ForProvider.ControlPlaneGroupNameRef = rsp.ResolvedReference
+
+	return nil
+}
+
 // ResolveReferences of this ControlPlaneAuth.
 func (mg *ControlPlaneAuth) ResolveReferences(ctx context.Context, c client.Reader) error {
 	r := reference.NewAPIResolver(c, mg)

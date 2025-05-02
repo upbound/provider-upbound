@@ -34,14 +34,14 @@ type ControlPlaneAuthParameters struct {
 	ControlPlaneName string `json:"controlPlaneName,omitempty"`
 
 	// Reference to a ControlPlane to populate controlPlaneName.
-	// Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
+	// Either ControlPlaneName, ControlPlaneRef or ControlPlaneSelector has to be given.
 	// +kubebuilder:validation:Optional
-	ControlPlaneNameRef *v1.Reference `json:"controlPlaneNameRef,omitempty"`
+	ControlPlaneRef *v1.Reference `json:"controlPlaneRef,omitempty"`
 
 	// Selector for a ControlPlane to populate controlPlaneName.
-	// Either ClusterName, ClusterNameRef or ClusterNameSelector has to be given.
+	// Either ControlPlaneName, ControlPlaneRef or ControlPlaneSelector has to be given.
 	// +kubebuilder:validation:Optional
-	ControlPlaneNameSelector *v1.Selector `json:"controlPlaneNameSelector,omitempty"`
+	ControlPlaneSelector *v1.Selector `json:"controlPlaneSelector,omitempty"`
 
 	// OrganizationName is the name of the organization to which the control plane
 	// belongs.

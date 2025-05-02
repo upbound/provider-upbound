@@ -18,9 +18,6 @@ package controlplanegroup
 
 import (
 	"context"
-	"github.com/upbound/up-sdk-go/service/robots"
-	"strconv"
-
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -29,10 +26,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"k8s.io/utils/ptr"
+	controlPlaneGroups "github.com/upbound/provider-upbound/internal/client/spaces"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	spacesv1beta1 "github.com/upbound/up-sdk-go/apis/spaces/v1beta1"
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/organizations"
 
@@ -110,8 +110,8 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		robots:        robots.NewClient(cfg),
-		organizations: organizations.NewClient(cfg),
+		controlPlaneGroups: controlPlaneGroups.NewClient(cfg),
+		organizations:      organizations.NewClient(cfg),
 	}, nil
 }
 
@@ -123,14 +123,14 @@ func (e *external) Disconnect(ctx context.Context) error {
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	robots        *robots.Client
-	organizations *organizations.Client
+	controlPlaneGroups *controlPlaneGroups.Client
+	organizations      *organizations.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.ControlPlaneGroup)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotRobot)
+		return managed.ExternalObservation{}, errors.New(errNotControlPlaneGroup)
 	}
 
 	if meta.GetExternalName(cr) == "" {
@@ -140,12 +140,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, "cannot parse external name as a uuid")
 	}
-	resp, err := c.robots.Get(ctx, id)
+	resp, err := c.controlPlaneGroups.Get(ctx, id)
 	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot")
+		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get controlPlaneGroup")
 	}
 	cr.Status.SetConditions(v1.Available())
-	cr.Status.AtProvider.ID = resp.ID.String()
+	//cr.Status.AtProvider.ID = resp.ID.Sqtring() // /org/space/group-name
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
@@ -154,57 +154,46 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.ControlPlaneGroup)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotRobot)
-	}
-	id := ptr.Deref(cr.Spec.ForProvider.Owner.ID, "")
-	if id == "" {
-		if cr.Spec.ForProvider.Owner.Name == nil {
-			return managed.ExternalCreation{}, errors.New("organization name or id must be specified")
-		}
-		o, err := c.organizations.GetOrgID(ctx, *cr.Spec.ForProvider.Owner.Name)
-		if err != nil {
-			return managed.ExternalCreation{}, errors.Wrap(err, "cannot get organization id")
-		}
-		id = strconv.FormatUint(uint64(o), 10)
+		return managed.ExternalCreation{}, errors.New(errNotControlPlaneGroup)
 	}
 
-	resp, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
-		Attributes: robots.RobotAttributes{
-			Name:        cr.Spec.ForProvider.Name,
-			Description: cr.Spec.ForProvider.Description,
-		},
-		Relationships: robots.RobotRelationships{
-			Owner: robots.RobotOwner{
-				Data: robots.RobotOwnerData{
-					Type: robots.RobotOwnerOrganization,
-					ID:   id,
-				},
+	group := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Spec.ForProvider.Name,
+			Labels: map[string]string{
+				spacesv1beta1.ControlPlaneGroupLabelKey:      "true",
+				spacesv1beta1.ControlPlaneGroupProtectionKey: "true",
 			},
 		},
-	})
-	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create robot")
 	}
-	meta.SetExternalName(cr, resp.ID.String())
-	return managed.ExternalCreation{}, nil
+
+	resp, err := client.Create(ctx, &group)
+
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "unable to create control plane group")
+	} else {
+		meta.SetExternalName(cr, resp.ID.String())
+		return managed.ExternalCreation{}, nil
+	}
+
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
-	// There is no Update endpoints in robots API.
+	// There is no Update endpoints in controlPlaneGroups API.
 	return managed.ExternalUpdate{}, nil
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*v1alpha1.Robot)
+	cr, ok := mg.(*v1alpha1.ControlPlaneGroup)
 	if !ok {
-		return managed.ExternalDelete{}, errors.New(errNotRobot)
+		return managed.ExternalDelete{}, errors.New(errNotControlPlaneGroup)
 	}
 
 	id, err := uuid.Parse(meta.GetExternalName(cr))
 	if err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as a uuid")
 	}
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.robots.Delete(ctx, id)), "cannot delete robot")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlaneGroups.Delete(ctx, id)), "cannot delete controlPlaneGroup")
 }

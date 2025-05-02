@@ -15,8 +15,6 @@
 package v1alpha1
 
 import (
-	"reflect"
-
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -68,20 +66,22 @@ type ControlPlaneGroupParameters struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// SpaceName is the name of the ControlPlane you'd like to fetch Kubeconfig of.
-	// Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
-	// +crossplane:generate:reference:type=ControlPlane
+	// SpaceName is the name of the Space you'd like to fetch Kubeconfig of.
+	// Either SpaceName, SpaceRef or SpaceSelector has to be given.
 	SpaceName string `json:"spaceName,omitempty"`
 
-	// Reference to a ControlPlane to populate controlPlaneName.
-	// Either ControlPlaneName, ControlPlaneNameRef or ControlPlaneNameSelector has to be given.
+	// DeletionProtection enable deletion protection on the group
 	// +kubebuilder:validation:Optional
-	SpaceNameRef *xpv1.Reference `json:"spaceNameRef,omitempty"`
-
-	// Selector for a ControlPlane to populate controlPlaneName.
-	// Either ClusterName, ClusterNameRef or ClusterNameSelector has to be given.
-	// +kubebuilder:validation:Optional
-	SpaceNameSelector *xpv1.Selector `json:"spaceNameSelector,omitempty"`
+	DeletionProtection bool `json:"DeletionProtection,omitempty"`
+	//// Reference to a Space to populate controlPlaneName.
+	//// Either SpaceName, SpaceRef or SpaceSelector has to be given.
+	//// +kubebuilder:validation:Optional
+	//SpaceRef *xpv1.Reference `json:"spaceRef,omitempty"`
+	//
+	//// Selector for a Space to populate controlPlaneName.
+	//// Either SpaceName, SpaceRef or SpaceSelector has to be given.
+	//// +kubebuilder:validation:Optional
+	//SpaceSelector *xpv1.Selector `json:"spacSelector,omitempty"`
 }
 
 // ControlPlaneGroupSpec defines the desired state of ControlPlaneGroup.
@@ -105,8 +105,7 @@ type ControlPlaneGroupObservation struct {
 }
 
 var (
-	// ControlPlaneGroupKind is the kind of the ControlPlaneGroup.
-	ControlPlaneGroupKind            = reflect.TypeOf(ControlPlaneGroup{}).Name()
+	// ControlPlaneGroupGroupKind is the kind of the ControlPlaneGroup.
 	ControlPlaneGroupGroupKind       = schema.GroupKind{Group: Group, Kind: ControlPlaneGroupKind}.String()
 	ControlPlaneGroupKindAPIVersion  = ControlPlaneGroupKind + "." + SchemeGroupVersion.String()
 	ControlPlaneGroupKindVersionKind = SchemeGroupVersion.WithKind(ControlPlaneGroupKind)
