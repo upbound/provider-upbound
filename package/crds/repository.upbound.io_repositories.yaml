@@ -95,6 +95,8 @@ spec:
                 required:
                 - name
                 - organizationName
+                - public
+                - publish
                 type: object
               managementPolicies:
                 default:
