@@ -38,11 +38,13 @@ type RepositoryParameters struct {
 	OrganizationName string `json:"organizationName"`
 
 	// Public determines the visibility of the repository
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=false
 	Public bool `json:"public"`
 
 	// Publish enables Upbound Marketplace listing page for the new repository
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default=false
 	Publish bool `json:"publish"`
 }
 
