@@ -1,5 +1,5 @@
 run:
-  deadline: 2m
+  timeout: 3m
 
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
@@ -22,7 +22,7 @@ linters-settings:
 
   govet:
     # report about shadowed variables
-    check-shadowing: false
+    shadow: false
 
   golint:
     # minimal confidence for issues, default is 0.8

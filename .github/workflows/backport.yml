@@ -21,8 +21,13 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.event.pull_request.merged
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Open Backport PR
-        uses: korthout/backport-action@v1
+        uses: korthout/backport-action@bd68141f079bd036e45ea8149bc9d174d5a04703 # v1.4.0

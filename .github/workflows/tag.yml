@@ -15,11 +15,16 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
 
       - name: Create Tag
-        uses: negz/create-tag@v1
+        uses: negz/create-tag@39bae1e0932567a58c20dea5a1a0d18358503320 # v1.0.3
         with:
           version: ${{ github.event.inputs.version }}
           message: ${{ github.event.inputs.message }}
