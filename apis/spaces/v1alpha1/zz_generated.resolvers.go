@@ -37,8 +37,8 @@ func (mg *ControlPlane) ResolveReferences(ctx context.Context, c client.Reader) 
 		Reference:    mg.Spec.ForProvider.ControlPlaneGroupNameRef,
 		Selector:     mg.Spec.ForProvider.ControlPlaneGroupNameSelector,
 		To: reference.To{
-			List:    &ControlPlaneList{},
-			Managed: &ControlPlane{},
+			List:    &ControlPlaneGroupList{},
+			Managed: &ControlPlaneGroup{},
 		},
 	})
 	if err != nil {
@@ -46,58 +46,6 @@ func (mg *ControlPlane) ResolveReferences(ctx context.Context, c client.Reader) 
 	}
 	mg.Spec.ForProvider.ControlPlaneGroupName = rsp.ResolvedValue
 	mg.Spec.ForProvider.ControlPlaneGroupNameRef = rsp.ResolvedReference
-
-	return nil
-}
-
-// ResolveReferences of this ControlPlaneAuth.
-func (mg *ControlPlaneAuth) ResolveReferences(ctx context.Context, c client.Reader) error {
-	r := reference.NewAPIResolver(c, mg)
-
-	var rsp reference.ResolutionResponse
-	var err error
-
-	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
-		CurrentValue: mg.Spec.ForProvider.ControlPlaneName,
-		Extract:      reference.ExternalName(),
-		Reference:    mg.Spec.ForProvider.ControlPlaneNameRef,
-		Selector:     mg.Spec.ForProvider.ControlPlaneNameSelector,
-		To: reference.To{
-			List:    &ControlPlaneList{},
-			Managed: &ControlPlane{},
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "mg.Spec.ForProvider.ControlPlaneName")
-	}
-	mg.Spec.ForProvider.ControlPlaneName = rsp.ResolvedValue
-	mg.Spec.ForProvider.ControlPlaneNameRef = rsp.ResolvedReference
-
-	return nil
-}
-
-// ResolveReferences of this ControlPlaneGroup.
-func (mg *ControlPlaneGroup) ResolveReferences(ctx context.Context, c client.Reader) error {
-	r := reference.NewAPIResolver(c, mg)
-
-	var rsp reference.ResolutionResponse
-	var err error
-
-	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
-		CurrentValue: mg.Spec.ForProvider.SpaceName,
-		Extract:      reference.ExternalName(),
-		Reference:    mg.Spec.ForProvider.SpaceNameRef,
-		Selector:     mg.Spec.ForProvider.SpaceNameSelector,
-		To: reference.To{
-			List:    &ControlPlaneList{},
-			Managed: &ControlPlane{},
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "mg.Spec.ForProvider.SpaceName")
-	}
-	mg.Spec.ForProvider.SpaceName = rsp.ResolvedValue
-	mg.Spec.ForProvider.SpaceNameRef = rsp.ResolvedReference
 
 	return nil
 }

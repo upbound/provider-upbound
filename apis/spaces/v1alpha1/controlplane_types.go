@@ -171,20 +171,20 @@ type ControlPlaneSpec struct {
 // +kubebuilder:validation:XValidation:rule="has(oldSelf.restore) || !has(self.restore)",message="[[GATE:EnableSharedBackup]] restore source can not be set after creation"
 // +kubebuilder:validation:XValidation:rule="!has(self.crossplane.autoUpgrade) || self.crossplane.autoUpgrade.channel != \"None\" || self.crossplane.version != \"\"",message="\"version\" cannot be empty when upgrade channel is \"None\""
 type ControlPlaneParameters struct {
-	// SpaceName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
+	// ControlPlaneGroupName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
 	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
-	// +crossplane:generate:reference:type=ControlPlane
-	ControlPlaneGroupName string `json:"spaceName,omitempty"`
+	// +crossplane:generate:reference:type=github.com/upbound/provider-upbound/apis/spaces/v1alpha1.ControlPlaneGroup
+	ControlPlaneGroupName string `json:"groupName,omitempty"`
 
 	// Reference to a ControlPlaneGroup to populate controlPlaneName.
 	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
 	// +kubebuilder:validation:Optional
-	ControlPlaneGroupRef *xpv1.Reference `json:"spaceNameRef,omitempty"`
+	ControlPlaneGroupNameRef *xpv1.Reference `json:"groupNameRef,omitempty"`
 
 	// Selector for a ControlPlane to populate controlPlaneName.
 	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
 	// +kubebuilder:validation:Optional
-	ControlPlaneGroupSelector *xpv1.Selector `json:"spaceNameSelector,omitempty"`
+	ControlPlaneGroupNameSelector *xpv1.Selector `json:"groupNameSelector,omitempty"`
 
 	// Crossplane defines the configuration for Crossplane.
 	Crossplane CrossplaneSpec `json:"crossplane,omitempty"`

@@ -18,6 +18,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -68,11 +69,11 @@ type ControlPlaneGroupParameters struct {
 
 	// SpaceName is the name of the Space you'd like to fetch Kubeconfig of.
 	// Either SpaceName, SpaceRef or SpaceSelector has to be given.
-	SpaceName string `json:"spaceName,omitempty"`
+	//SpaceName string `json:"spaceName,omitempty"`
 
 	// DeletionProtection enable deletion protection on the group
 	// +kubebuilder:validation:Optional
-	DeletionProtection bool `json:"DeletionProtection,omitempty"`
+	DeletionProtection bool `json:"deletionProtection,omitempty"`
 	//// Reference to a Space to populate controlPlaneName.
 	//// Either SpaceName, SpaceRef or SpaceSelector has to be given.
 	//// +kubebuilder:validation:Optional
@@ -100,15 +101,16 @@ type ControlPlaneGroupStatus struct {
 type ControlPlaneGroupObservation struct {
 	Name string `json:"name"`
 	// it would be nice if we can get the space name/id...
-	AccountID uint        `json:"accountId"`
+	AccountID uint        `json:"controlplaneGroupName"`
 	CreatedAt metav1.Time `json:"createdAt"`
 }
 
 var (
 	// ControlPlaneGroupGroupKind is the kind of the ControlPlaneGroup.
-	ControlPlaneGroupGroupKind       = schema.GroupKind{Group: Group, Kind: ControlPlaneGroupKind}.String()
-	ControlPlaneGroupKindAPIVersion  = ControlPlaneGroupKind + "." + SchemeGroupVersion.String()
-	ControlPlaneGroupKindVersionKind = SchemeGroupVersion.WithKind(ControlPlaneGroupKind)
+	ControlPlaneGrpKind                 = reflect.TypeOf(ControlPlaneGroup{}).Name()
+	ControlPlaneGrpGroupKind            = schema.GroupKind{Group: Group, Kind: ControlPlaneGrpKind}.String()
+	ControlPlaneGrpKindAPIVersion       = ControlPlaneGrpGroupKind + "." + SchemeGroupVersion.String()
+	ControlPlaneGrpGroupKindVersionKind = SchemeGroupVersion.WithKind(ControlPlaneGrpKind)
 )
 
 func init() {

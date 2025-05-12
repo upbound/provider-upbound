@@ -72,6 +72,10 @@ spec:
                 type: string
               forProvider:
                 properties:
+                  DeletionProtection:
+                    description: DeletionProtection enable deletion protection on
+                      the group
+                    type: boolean
                   name:
                     description: |-
                       Name is the name to use when creating a control plane group.

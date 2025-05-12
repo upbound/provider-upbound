@@ -148,6 +148,89 @@ spec:
                         - message: The version must not start with a leading 'v'
                           rule: (self.matches('^[^v].*'))
                     type: object
+                  groupName:
+                    description: |-
+                      ControlPlaneGroupName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
+                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+                    type: string
+                  groupNameRef:
+                    description: |-
+                      Reference to a ControlPlaneGroup to populate controlPlaneName.
+                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+                    properties:
+                      name:
+                        description: Name of the referenced object.
+                        type: string
+                      policy:
+                        description: Policies for referencing.
+                        properties:
+                          resolution:
+                            default: Required
+                            description: |-
+                              Resolution specifies whether resolution of this reference is required.
+                              The default is 'Required', which means the reconcile will fail if the
+                              reference cannot be resolved. 'Optional' means this reference will be
+                              a no-op if it cannot be resolved.
+                            enum:
+                            - Required
+                            - Optional
+                            type: string
+                          resolve:
+                            description: |-
+                              Resolve specifies when this reference should be resolved. The default
+                              is 'IfNotPresent', which will attempt to resolve the reference only when
+                              the corresponding field is not present. Use 'Always' to resolve the
+                              reference on every reconcile.
+                            enum:
+                            - Always
+                            - IfNotPresent
+                            type: string
+                        type: object
+                    required:
+                    - name
+                    type: object
+                  groupNameSelector:
+                    description: |-
+                      Selector for a ControlPlane to populate controlPlaneName.
+                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
+                    properties:
+                      matchControllerRef:
+                        description: |-
+                          MatchControllerRef ensures an object with the same controller reference
+                          as the selecting object is selected.
+                        type: boolean
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: MatchLabels ensures an object with matching labels
+                          is selected.
+                        type: object
+                      policy:
+                        description: Policies for selection.
+                        properties:
+                          resolution:
+                            default: Required
+                            description: |-
+                              Resolution specifies whether resolution of this reference is required.
+                              The default is 'Required', which means the reconcile will fail if the
+                              reference cannot be resolved. 'Optional' means this reference will be
+                              a no-op if it cannot be resolved.
+                            enum:
+                            - Required
+                            - Optional
+                            type: string
+                          resolve:
+                            description: |-
+                              Resolve specifies when this reference should be resolved. The default
+                              is 'IfNotPresent', which will attempt to resolve the reference only when
+                              the corresponding field is not present. Use 'Always' to resolve the
+                              reference on every reconcile.
+                            enum:
+                            - Always
+                            - IfNotPresent
+                            type: string
+                        type: object
+                    type: object
                   restore:
                     description: |-
                       [[GATE:EnableSharedBackup]] THIS IS AN ALPHA FIELD. Do not use it in production.
@@ -196,89 +279,6 @@ spec:
                     x-kubernetes-validations:
                     - message: finishedAt is immutable once set
                       rule: '!has(oldSelf.finishedAt) || oldSelf.finishedAt == self.finishedAt'
-                  spaceName:
-                    description: |-
-                      SpaceName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
-                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
-                    type: string
-                  spaceNameRef:
-                    description: |-
-                      Reference to a ControlPlaneGroup to populate controlPlaneName.
-                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
-                    properties:
-                      name:
-                        description: Name of the referenced object.
-                        type: string
-                      policy:
-                        description: Policies for referencing.
-                        properties:
-                          resolution:
-                            default: Required
-                            description: |-
-                              Resolution specifies whether resolution of this reference is required.
-                              The default is 'Required', which means the reconcile will fail if the
-                              reference cannot be resolved. 'Optional' means this reference will be
-                              a no-op if it cannot be resolved.
-                            enum:
-                            - Required
-                            - Optional
-                            type: string
-                          resolve:
-                            description: |-
-                              Resolve specifies when this reference should be resolved. The default
-                              is 'IfNotPresent', which will attempt to resolve the reference only when
-                              the corresponding field is not present. Use 'Always' to resolve the
-                              reference on every reconcile.
-                            enum:
-                            - Always
-                            - IfNotPresent
-                            type: string
-                        type: object
-                    required:
-                    - name
-                    type: object
-                  spaceNameSelector:
-                    description: |-
-                      Selector for a ControlPlane to populate controlPlaneName.
-                      Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
-                    properties:
-                      matchControllerRef:
-                        description: |-
-                          MatchControllerRef ensures an object with the same controller reference
-                          as the selecting object is selected.
-                        type: boolean
-                      matchLabels:
-                        additionalProperties:
-                          type: string
-                        description: MatchLabels ensures an object with matching labels
-                          is selected.
-                        type: object
-                      policy:
-                        description: Policies for selection.
-                        properties:
-                          resolution:
-                            default: Required
-                            description: |-
-                              Resolution specifies whether resolution of this reference is required.
-                              The default is 'Required', which means the reconcile will fail if the
-                              reference cannot be resolved. 'Optional' means this reference will be
-                              a no-op if it cannot be resolved.
-                            enum:
-                            - Required
-                            - Optional
-                            type: string
-                          resolve:
-                            description: |-
-                              Resolve specifies when this reference should be resolved. The default
-                              is 'IfNotPresent', which will attempt to resolve the reference only when
-                              the corresponding field is not present. Use 'Always' to resolve the
-                              reference on every reconcile.
-                            enum:
-                            - Always
-                            - IfNotPresent
-                            type: string
-                        type: object
-                    type: object
                 type: object
                 x-kubernetes-validations:
                 - message: '[[GATE:EnableSharedBackup]] restore source can not be

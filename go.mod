@@ -5,7 +5,6 @@ go 1.23.7
 require (
 	github.com/crossplane/crossplane-runtime v1.18.0
 	github.com/crossplane/crossplane-tools v0.0.0-20240522174801-1ad3d4c87f21
-	github.com/external-secrets/external-secrets v0.9.13
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1

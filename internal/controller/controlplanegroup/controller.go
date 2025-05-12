@@ -71,7 +71,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.ControlPlaneGroupKindVersionKind),
+		resource.ManagedKind(v1alpha1.ControlPlaneGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
