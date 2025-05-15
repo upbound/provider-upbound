@@ -16,8 +16,10 @@ package v1alpha1
 
 import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -69,8 +71,8 @@ type ControlPlaneGroupParameters struct {
 
 	// SpaceName is the name of the Space you'd like to fetch Kubeconfig of.
 	// Either SpaceName, SpaceRef or SpaceSelector has to be given.
-	//SpaceName string `json:"spaceName,omitempty"`
-
+	SpaceName        string `json:"spaceName,omitempty"`
+	OrganizationName string `json:"organizationName,omitempty"`
 	// DeletionProtection enable deletion protection on the group
 	// +kubebuilder:validation:Optional
 	DeletionProtection bool `json:"deletionProtection,omitempty"`
@@ -101,8 +103,9 @@ type ControlPlaneGroupStatus struct {
 type ControlPlaneGroupObservation struct {
 	Name string `json:"name"`
 	// it would be nice if we can get the space name/id...
-	AccountID uint        `json:"controlplaneGroupName"`
-	CreatedAt metav1.Time `json:"createdAt"`
+	GroupUID  types.UID          `json:"groupUID"`
+	CreatedAt metav1.Time        `json:"createdAt"`
+	Status    v1.NamespaceStatus `json:"status"`
 }
 
 var (

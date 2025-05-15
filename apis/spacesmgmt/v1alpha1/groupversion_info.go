@@ -14,7 +14,7 @@
 
 // Package v1alpha1 contains ControlPlane resources.
 // +kubebuilder:object:generate=true
-// +groupName=spaces.upbound.io
+// +groupName=spacesmgmt.upbound.io
 // +versionName=v1alpha1
 package v1alpha1
 
@@ -25,7 +25,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "spaces.upbound.io"
+	Group   = "spacesmgmt.upbound.io"
 	Version = "v1alpha1"
 )
 

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/upbound/provider-upbound/internal/controller/controlplanegroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/upbound/provider-upbound/internal/controller/config"
@@ -40,6 +41,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		robotteammembership.Setup,
 		team.Setup,
 		token.Setup,
+		controlplanegroup.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

@@ -24,22 +24,19 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	controlPlaneGroups "github.com/upbound/provider-upbound/internal/client/spaces"
+	"github.com/upbound/provider-upbound/apis/spacesmgmt/v1alpha1"
+	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	upclient "github.com/upbound/provider-upbound/internal/client"
+	controlPlaneGroups "github.com/upbound/provider-upbound/internal/client/controlplanegroup"
+	"github.com/upbound/provider-upbound/internal/features"
+	spacesv1beta1 "github.com/upbound/up-sdk-go/apis/spaces/v1beta1"
+	uperrors "github.com/upbound/up-sdk-go/errors"
+	"github.com/upbound/up-sdk-go/service/organizations"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	spacesv1beta1 "github.com/upbound/up-sdk-go/apis/spaces/v1beta1"
-	uperrors "github.com/upbound/up-sdk-go/errors"
-	"github.com/upbound/up-sdk-go/service/organizations"
-
-	"github.com/upbound/provider-upbound/apis/spaces/v1alpha1"
-	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
-	upclient "github.com/upbound/provider-upbound/internal/client"
-	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
@@ -51,7 +48,7 @@ const (
 
 // Setup adds a controller that reconciles ControlPlaneGroup managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.ControlPlaneGroupKind)
+	name := managed.ControllerName(v1alpha1.ControlPlaneGrpKind)
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnecter(&connector{
@@ -71,7 +68,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.ControlPlaneGroupVersionKind),
+		resource.ManagedKind(v1alpha1.ControlPlaneGrpGroupKindVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -136,16 +133,14 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if meta.GetExternalName(cr) == "" {
 		return managed.ExternalObservation{}, nil
 	}
-	id, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, "cannot parse external name as a uuid")
-	}
-	resp, err := c.controlPlaneGroups.Get(ctx, id)
+
+	resp, err := c.controlPlaneGroups.Get(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.SpaceName, cr.Spec.ForProvider.Name)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get controlPlaneGroup")
 	}
 	cr.Status.SetConditions(v1.Available())
-	//cr.Status.AtProvider.ID = resp.ID.Sqtring() // /org/space/group-name
+	cr.Status.AtProvider.GroupUID = resp.UID
+	cr.Status.AtProvider.Status = resp.Status
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
@@ -158,26 +153,32 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotControlPlaneGroup)
 	}
-
-	group := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Spec.ForProvider.Name,
-			Labels: map[string]string{
-				spacesv1beta1.ControlPlaneGroupLabelKey:      "true",
-				spacesv1beta1.ControlPlaneGroupProtectionKey: "true",
-			},
-		},
-	}
-
-	resp, err := client.Create(ctx, &group)
-
-	if err != nil {
-		return managed.ExternalCreation{}, errors.Wrap(err, "unable to create control plane group")
-	} else {
-		meta.SetExternalName(cr, resp.ID.String())
+	resp, err := c.controlPlaneGroups.Get(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.SpaceName, cr.Spec.ForProvider.Name)
+	// expand on this a bit
+	if err == nil {
+		meta.SetExternalName(cr, resp.Name)
+		// set status values from response
 		return managed.ExternalCreation{}, nil
-	}
+	} else {
+		group := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: cr.Spec.ForProvider.Name,
+				Labels: map[string]string{
+					spacesv1beta1.ControlPlaneGroupLabelKey: "true",
+					//spacesv1beta1.ControlPlaneGroupProtectionKey: strconv.FormatBool(cr.Spec.ForProvider.DeletionProtection),
+				},
+			},
+		}
 
+		resp, err := c.controlPlaneGroups.Create(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.SpaceName, &group)
+
+		if err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "unable to create control plane group")
+		} else {
+			meta.SetExternalName(cr, resp.Name)
+			return managed.ExternalCreation{}, nil
+		}
+	}
 }
 
 func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
@@ -191,9 +192,9 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalDelete{}, errors.New(errNotControlPlaneGroup)
 	}
 
-	id, err := uuid.Parse(meta.GetExternalName(cr))
-	if err != nil {
-		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as a uuid")
-	}
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlaneGroups.Delete(ctx, id)), "cannot delete controlPlaneGroup")
+	//id, err := uuid.Parse(meta.GetExternalName(cr))
+	//if err != nil {
+	//	return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as a uuid")
+	//}
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.controlPlaneGroups.Delete(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.SpaceName, cr.Spec.ForProvider.Name)), "cannot delete controlPlaneGroup")
 }

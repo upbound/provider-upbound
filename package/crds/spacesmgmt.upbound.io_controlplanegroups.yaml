@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: controlplanegroups.spaces.upbound.io
+  name: controlplanegroups.spacesmgmt.upbound.io
 spec:
-  group: spaces.upbound.io
+  group: spacesmgmt.upbound.io
   names:
     categories:
     - crossplane
@@ -72,7 +72,7 @@ spec:
                 type: string
               forProvider:
                 properties:
-                  DeletionProtection:
+                  deletionProtection:
                     description: DeletionProtection enable deletion protection on
                       the group
                     type: boolean
@@ -87,6 +87,8 @@ spec:
                     x-kubernetes-validations:
                     - message: value is immutable
                       rule: self == oldSelf
+                  organizationName:
+                    type: string
                   spaceName:
                     description: |-
                       SpaceName is the name of the Space you'd like to fetch Kubeconfig of.
@@ -268,18 +270,64 @@ spec:
                 description: ControlPlaneGroupObservation are the observable fields
                   of a Repository.
                 properties:
-                  accountId:
-                    description: it would be nice if we can get the space name/id...
-                    type: integer
                   createdAt:
                     format: date-time
                     type: string
+                  groupUID:
+                    description: it would be nice if we can get the space name/id...
+                    type: string
                   name:
                     type: string
+                  status:
+                    description: NamespaceStatus is information about the current
+                      status of a Namespace.
+                    properties:
+                      conditions:
+                        description: Represents the latest available observations
+                          of a namespace's current state.
+                        items:
+                          description: NamespaceCondition contains details about state
+                            of namespace.
+                          properties:
+                            lastTransitionTime:
+                              description: Last time the condition transitioned from
+                                one status to another.
+                              format: date-time
+                              type: string
+                            message:
+                              description: Human-readable message indicating details
+                                about last transition.
+                              type: string
+                            reason:
+                              description: Unique, one-word, CamelCase reason for
+                                the condition's last transition.
+                              type: string
+                            status:
+                              description: Status of the condition, one of True, False,
+                                Unknown.
+                              type: string
+                            type:
+                              description: Type of namespace controller condition.
+                              type: string
+                          required:
+                          - status
+                          - type
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - type
+                        x-kubernetes-list-type: map
+                      phase:
+                        description: |-
+                          Phase is the current lifecycle phase of the namespace.
+                          More info: https://kubernetes.io/docs/tasks/administer-cluster/namespaces/
+                        type: string
+                    type: object
                 required:
-                - accountId
                 - createdAt
+                - groupUID
                 - name
+                - status
                 type: object
               conditions:
                 description: Conditions of the resource.

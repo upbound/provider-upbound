@@ -4,12 +4,12 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: controlplanes.spaces.upbound.io
+  name: controlplanes.spacesmgmt.upbound.io
 spec:
-  group: spaces.upbound.io
+  group: spacesmgmt.upbound.io
   names:
     categories:
-    - spaces
+    - spacesmgmt
     kind: ControlPlane
     listKind: ControlPlaneList
     plural: controlplanes
@@ -84,76 +84,13 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: A ControlPlaneParameters represents the desired state
-                  of the ControlPlaneSpec.
                 properties:
-                  class:
-                    default: default
-                    description: |-
-                      [[GATE:EnableControlPlaneClasses]]
-                      Class specifies the class of the control plane. This affects the
-                      control plane sizing, including component replicas and resource
-                      requirements. There are multiple predefined classes, with "default"
-                      being the standard Spaces control plane without any additional class
-                      configuration. Check the Upbound Cloud documentation for a list of all
-                      available classes. Defaults to "default".
-                    type: string
-                    x-kubernetes-validations:
-                    - message: class is immutable
-                      rule: self == oldSelf
-                  crossplane:
-                    description: Crossplane defines the configuration for Crossplane.
-                    properties:
-                      autoUpgrade:
-                        default:
-                          channel: Stable
-                        description: AutoUpgrades defines the auto upgrade configuration
-                          for Crossplane.
-                        properties:
-                          channel:
-                            default: Stable
-                            description: |-
-                              Channel defines the upgrade channels for Crossplane. We support the following channels where 'Stable' is the
-                              default:
-                              - None: disables auto-upgrades and keeps the control plane at its current version of Crossplane.
-                              - Patch: automatically upgrades the control plane to the latest supported patch version when it
-                                becomes available while keeping the minor version the same.
-                              - Stable: automatically upgrades the control plane to the latest supported patch release on minor
-                                version N-1, where N is the latest supported minor version.
-                              - Rapid: automatically upgrades the cluster to the latest supported patch release on the latest
-                                supported minor version.
-                            enum:
-                            - None
-                            - Patch
-                            - Stable
-                            - Rapid
-                            type: string
-                        type: object
-                      state:
-                        default: Running
-                        description: |-
-                          State defines the state for crossplane and provider workloads. We support
-                          the following states where 'Running' is the default:
-                          - Running: Starts/Scales up all crossplane and provider workloads in the ControlPlane
-                          - Paused: Pauses/Scales down all crossplane and provider workloads in the ControlPlane
-                        enum:
-                        - Running
-                        - Paused
-                        type: string
-                      version:
-                        description: Version is the version of Universal Crossplane
-                          to install.
-                        type: string
-                        x-kubernetes-validations:
-                        - message: The version must not start with a leading 'v'
-                          rule: (self.matches('^[^v].*'))
-                    type: object
-                  groupName:
+                  controlPlaneGroupName:
                     description: |-
                       ControlPlaneGroupName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
                       Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
                     type: string
-                  groupNameRef:
+                  controlPlaneGroupNameRef:
                     description: |-
                       Reference to a ControlPlaneGroup to populate controlPlaneName.
                       Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
@@ -189,7 +126,7 @@ spec:
                     required:
                     - name
                     type: object
-                  groupNameSelector:
+                  controlPlaneGroupNameSelector:
                     description: |-
                       Selector for a ControlPlane to populate controlPlaneName.
                       Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
@@ -231,65 +168,149 @@ spec:
                             type: string
                         type: object
                     type: object
-                  restore:
-                    description: |-
-                      [[GATE:EnableSharedBackup]] THIS IS AN ALPHA FIELD. Do not use it in production.
-                      Restore specifies details about the control planes restore configuration.
+                  details:
+                    description: A ControlPlaneSpec represents the desired state of
+                      the ControlPlane.
                     properties:
-                      finishedAt:
-                        description: |-
-                          FinishedAt is the time at which the control plane was restored, it's not
-                          meant to be set by the user, but rather by the system when the control
-                          plane is restored.
-                        format: date-time
-                        type: string
-                      source:
-                        description: |-
-                          Source of the Backup or BackupSchedule to restore from.
-                          Require "restore" permission on the referenced Backup or BackupSchedule.
-                          ApiGroup is optional and defaults to "spaces.upbound.io".
-                          Kind is required, and the only supported kinds are Backup and
-                          BackupSchedule at the moment.
-                          Name is required.
+                      crossplane:
+                        description: Crossplane defines the configuration for Crossplane.
                         properties:
-                          apiGroup:
-                            description: APIGroup is the group for the resource being
-                              referenced.
+                          autoUpgrade:
+                            default:
+                              channel: Stable
+                            description: AutoUpgrades defines the auto upgrade configuration
+                              for Crossplane.
+                            properties:
+                              channel:
+                                default: Stable
+                                description: |-
+                                  Channel defines the upgrade channels for Crossplane. We support the following channels where 'Stable' is the
+                                  default:
+                                  - None: disables auto-upgrades and keeps the control plane at its current version of Crossplane.
+                                  - Patch: automatically upgrades the control plane to the latest supported patch version when it
+                                    becomes available while keeping the minor version the same.
+                                  - Stable: automatically upgrades the control plane to the latest supported patch release on minor
+                                    version N-1, where N is the latest supported minor version.
+                                  - Rapid: automatically upgrades the cluster to the latest supported patch release on the latest
+                                    supported minor version.
+                                enum:
+                                - None
+                                - Patch
+                                - Stable
+                                - Rapid
+                                type: string
+                            type: object
+                          state:
+                            default: Running
+                            description: |-
+                              State defines the state for crossplane and provider workloads. We support
+                              the following states where 'Running' is the default:
+                              - Running: Starts/Scales up all crossplane and provider workloads in the ControlPlane
+                              - Paused: Pauses/Scales down all crossplane and provider workloads in the ControlPlane
+                            enum:
+                            - Running
+                            - Paused
                             type: string
-                          kind:
-                            description: Kind is the type of resource being referenced.
-                            minLength: 1
-                            type: string
-                          name:
-                            description: Name is the name of resource being referenced.
-                            minLength: 1
+                          version:
+                            description: Version is the version of Universal Crossplane
+                              to install.
                             type: string
                         type: object
-                        x-kubernetes-map-type: atomic
+                      restore:
+                        description: |-
+                          [[GATE:EnableSharedBackup]] THIS IS AN ALPHA FIELD. Do not use it in production.
+                          Restore specifies details about the control planes restore configuration.
+                        properties:
+                          finishedAt:
+                            description: |-
+                              FinishedAt is the time at which the control plane was restored, it's not
+                              meant to be set by the user, but rather by the system when the control
+                              plane is restored.
+                            format: date-time
+                            type: string
+                          source:
+                            description: |-
+                              Source of the Backup or BackupSchedule to restore from.
+                              Require "restore" permission on the referenced Backup or BackupSchedule.
+                              ApiGroup is optional and defaults to "spaces.upbound.io".
+                              Kind is required, and the only supported kinds are Backup and
+                              BackupSchedule at the moment.
+                              Name is required.
+                            properties:
+                              apiGroup:
+                                description: APIGroup is the group for the resource
+                                  being referenced.
+                                type: string
+                              kind:
+                                description: Kind is the type of resource being referenced.
+                                minLength: 1
+                                type: string
+                              name:
+                                description: Name is the name of resource being referenced.
+                                minLength: 1
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                            x-kubernetes-validations:
+                            - message: source must be a reference to a Backup or BackupSchedule
+                                (v1alpha1)
+                              rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
+                                && (self.kind == 'Backup' || self.kind == 'BackupSchedule')
+                            - message: source is immutable
+                              rule: oldSelf == self
+                        required:
+                        - source
+                        type: object
                         x-kubernetes-validations:
-                        - message: source must be a reference to a Backup or BackupSchedule
-                            (v1alpha1)
-                          rule: (!has(self.apiGroup) || self.apiGroup == 'spaces.upbound.io')
-                            && (self.kind == 'Backup' || self.kind == 'BackupSchedule')
-                        - message: source is immutable
-                          rule: oldSelf == self
-                    required:
-                    - source
+                        - message: finishedAt is immutable once set
+                          rule: '!has(oldSelf.finishedAt) || oldSelf.finishedAt ==
+                            self.finishedAt'
+                      writeConnectionSecretToRef:
+                        description: |-
+                          WriteConnectionSecretToReference specifies the namespace and name of a
+                          Secret to which any connection details for this managed resource should
+                          be written. Connection details frequently include the endpoint, username,
+                          and password required to connect to the managed resource.
+                          This field is planned to be replaced in a future release in favor of
+                          PublishConnectionDetailsTo. Currently, both could be set independently
+                          and connection details would be published to both without affecting
+                          each other.
+
+                          If omitted, it is defaulted to the namespace of the ControlPlane.
+                          Deprecated: Use Hub or Upbound identities instead.
+                        properties:
+                          name:
+                            description: Name of the secret.
+                            type: string
+                          namespace:
+                            description: |-
+                              Namespace of the secret. If omitted, it is equal to
+                              the namespace of the resource containing this reference as a field.
+                            type: string
+                        required:
+                        - name
+                        type: object
                     type: object
                     x-kubernetes-validations:
-                    - message: finishedAt is immutable once set
-                      rule: '!has(oldSelf.finishedAt) || oldSelf.finishedAt == self.finishedAt'
+                    - message: '[[GATE:EnableSharedBackup]] restore source can not
+                        be unset'
+                      rule: '!has(oldSelf.restore) || has(self.restore)'
+                    - message: '[[GATE:EnableSharedBackup]] restore source can not
+                        be set after creation'
+                      rule: has(oldSelf.restore) || !has(self.restore)
+                    - message: '"version" cannot be empty when upgrade channel is
+                        "None"'
+                      rule: '!has(self.crossplane.autoUpgrade) || self.crossplane.autoUpgrade.channel
+                        != "None" || self.crossplane.version != ""'
+                  name:
+                    type: string
+                  space:
+                    type: string
+                required:
+                - details
+                - name
+                - space
                 type: object
-                x-kubernetes-validations:
-                - message: '[[GATE:EnableSharedBackup]] restore source can not be
-                    unset'
-                  rule: '!has(oldSelf.restore) || has(self.restore)'
-                - message: '[[GATE:EnableSharedBackup]] restore source can not be
-                    set after creation'
-                  rule: has(oldSelf.restore) || !has(self.restore)
-                - message: '"version" cannot be empty when upgrade channel is "None"'
-                  rule: '!has(self.crossplane.autoUpgrade) || self.crossplane.autoUpgrade.channel
-                    != "None" || self.crossplane.version != ""'
               managementPolicies:
                 default:
                 - '*'
@@ -460,6 +481,71 @@ spec:
           status:
             description: A ControlPlaneStatus represents the observed state of a ControlPlane.
             properties:
+              atProvider:
+                description: A ControlPlaneStatus represents the observed state of
+                  a ControlPlane.
+                properties:
+                  conditions:
+                    description: Conditions of the resource.
+                    items:
+                      description: A Condition that may apply to a resource.
+                      properties:
+                        lastTransitionTime:
+                          description: |-
+                            LastTransitionTime is the last time this condition transitioned from one
+                            status to another.
+                          format: date-time
+                          type: string
+                        message:
+                          description: |-
+                            A Message containing details about this condition's last transition from
+                            one status to another, if any.
+                          type: string
+                        observedGeneration:
+                          description: |-
+                            ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                            For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                            with respect to the current state of the instance.
+                          format: int64
+                          type: integer
+                        reason:
+                          description: A Reason for this condition's last transition
+                            from one status to another.
+                          type: string
+                        status:
+                          description: Status of this condition; is it currently True,
+                            False, or Unknown?
+                          type: string
+                        type:
+                          description: |-
+                            Type of this condition. At most one of each condition type may apply to
+                            a resource at any point in time.
+                          type: string
+                      required:
+                      - lastTransitionTime
+                      - reason
+                      - status
+                      - type
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - type
+                    x-kubernetes-list-type: map
+                  controlPlaneID:
+                    type: string
+                  message:
+                    description: |-
+                      Message is a human-readable message indicating details about why the
+                      ControlPlane is in this condition.
+                    type: string
+                  observedGeneration:
+                    description: |-
+                      ObservedGeneration is the latest metadata.generation
+                      which resulted in either a ready state, or stalled due to error
+                      it can not recover from without human intervention.
+                    format: int64
+                    type: integer
+                type: object
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -506,18 +592,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              controlPlaneID:
-                type: string
-              firstAvailableAt:
-                description: FirstAvailableAt is the time at which the control plane
-                  was available for the first time.
-                format: date-time
-                type: string
-              message:
-                description: |-
-                  Message is a human-readable message indicating details about why the
-                  ControlPlane is in this condition.
-                type: string
               observedGeneration:
                 description: |-
                   ObservedGeneration is the latest metadata.generation
@@ -525,24 +599,6 @@ spec:
                   it can not recover from without human intervention.
                 format: int64
                 type: integer
-              size:
-                description: |-
-                  [[GATE:EnableControlPlaneClasses]]
-                  Size holds the status information about the control plane size,
-                  including resource usage.
-                properties:
-                  resourceUsage:
-                    description: ResourceUsage represents the resource limits and
-                      consumption of the control plane.
-                    properties:
-                      cpu:
-                        description: CPU represents the CPU resource usage.
-                        type: string
-                      memory:
-                        description: Memory represents the memory resource usage.
-                        type: string
-                    type: object
-                type: object
             type: object
         required:
         - spec

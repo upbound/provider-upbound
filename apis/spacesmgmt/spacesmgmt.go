@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spaces contains spaces.upbound.io API versions.
-package spaces
+// Package spacesmgmt contains spacesmgmt.upbound.io API versions.
+package spacesmgmt

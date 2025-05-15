@@ -22,7 +22,7 @@ import (
 
 	iamv1alpha1 "github.com/upbound/provider-upbound/apis/iam/v1alpha1"
 	repository1alpha1 "github.com/upbound/provider-upbound/apis/repository/v1alpha1"
-	spacesv1alpha1 "github.com/upbound/provider-upbound/apis/spaces/v1alpha1"
+	spacesv1alpha1 "github.com/upbound/provider-upbound/apis/spacesmgmt/v1alpha1"
 	upboundv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
 )
 
