@@ -1,0 +1,14 @@
+apiVersion: spacesmgmt.upbound.io/v1alpha1
+kind: ControlPlane
+metadata:
+  name: example-controlplane
+spec:
+  forProvider:
+    organizationName: example-org
+    spaceName: example-space
+    controlPlaneGroupName: example-group
+    details:
+      crossplane:
+        autoUpgrade:
+          channel: Rapid
+      class: default
