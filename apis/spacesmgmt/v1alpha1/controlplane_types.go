@@ -31,9 +31,9 @@ type ControlPlaneSpec struct {
 }
 
 type ControlPlaneParameters struct {
-	Name  string `json:"name"`
-	Space string `json:"space"`
-
+	Name             string `json:"name"`
+	OrganizationName string `json:"organizationName,omitempty"`
+	SpaceName        string `json:"spaceName"`
 	// ControlPlaneGroupName is the name of the ControlPlaneGroup you'd like to fetch Kubeconfig of.
 	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
 	// +crossplane:generate:reference:type=github.com/upbound/provider-upbound/apis/spacesmgmt/v1alpha1.ControlPlaneGroup
@@ -48,7 +48,7 @@ type ControlPlaneParameters struct {
 	// Either ControlPlaneGroupName, ControlPlaneGroupRef or ControlPlaneGroupSelector has to be given.
 	// +kubebuilder:validation:Optional
 	ControlPlaneGroupNameSelector *xpv1.Selector `json:"controlPlaneGroupNameSelector,omitempty"`
-
+	// +kubebuilder:validation:Required
 	Details v1beta1.ControlPlaneSpec `json:"details"`
 }
 

@@ -304,12 +304,14 @@ spec:
                         != "None" || self.crossplane.version != ""'
                   name:
                     type: string
-                  space:
+                  organizationName:
+                    type: string
+                  spaceName:
                     type: string
                 required:
                 - details
                 - name
-                - space
+                - spaceName
                 type: object
               managementPolicies:
                 default:
