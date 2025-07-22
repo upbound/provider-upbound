@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -39,9 +40,17 @@ import (
 
 	"github.com/upbound/provider-upbound/apis"
 	"github.com/upbound/provider-upbound/apis/v1alpha1"
+	"github.com/upbound/provider-upbound/internal/bootcheck"
 	upbound "github.com/upbound/provider-upbound/internal/controller"
 	"github.com/upbound/provider-upbound/internal/features"
 )
+
+func init() {
+	err := bootcheck.CheckEnv()
+	if err != nil {
+		log.Fatalf("bootcheck failed. provider will not be started: %v", err)
+	}
+}
 
 func main() {
 	var (
