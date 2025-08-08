@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"github.com/upbound/provider-upbound/internal/controller"
 	"testing"
 
 	managed "github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -28,7 +29,7 @@ func TestObserve(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		setupMocks func(m *mockClient)
+		setupMocks func(m *controller.mockClient)
 		args       args
 		want       want
 	}{
@@ -44,7 +45,7 @@ func TestObserve(t *testing.T) {
 			},
 		},
 		"RepoNotFound": {
-			setupMocks: func(m *mockClient) {
+			setupMocks: func(m *controller.mockClient) {
 				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
 					return nil, errors.New("not found")
 				}
@@ -64,7 +65,7 @@ func TestObserve(t *testing.T) {
 			},
 		},
 		"RepoUpToDate": {
-			setupMocks: func(m *mockClient) {
+			setupMocks: func(m *controller.mockClient) {
 				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
 					return &repos.RepositoryResponse{
 						Repository: repos.Repository{
@@ -97,7 +98,7 @@ func TestObserve(t *testing.T) {
 			},
 		},
 		"RepoOutOfSync": {
-			setupMocks: func(m *mockClient) {
+			setupMocks: func(m *controller.mockClient) {
 				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
 					return &repos.RepositoryResponse{
 						Repository: repos.Repository{
@@ -133,7 +134,7 @@ func TestObserve(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			mockClient := &mockClient{}
+			mockClient := &controller.mockClient{}
 			if tc.setupMocks != nil {
 				tc.setupMocks(mockClient)
 			}

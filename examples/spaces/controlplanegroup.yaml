@@ -1,0 +1,9 @@
+apiVersion: spacesmgmt.upbound.io/v1alpha1
+kind: ControlPlaneGroup
+metadata:
+  name: example-controlplane
+spec:
+  forProvider:
+    organizationName: example-org
+    spaceName: example-space
+    name: example-group

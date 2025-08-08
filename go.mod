@@ -9,7 +9,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/upbound/up-sdk-go v1.12.0
+	github.com/upbound/up-sdk-go/apis v1.8.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
@@ -32,7 +34,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250311190419-81fb87f6b8bf // indirect
 	google.golang.org/grpc v1.71.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
-	k8s.io/api v0.32.3 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 

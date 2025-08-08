@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Upbound Inc.
+Copyright 2025 Upbound Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ var (
 )
 
 func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*up.Config, Profile, error) {
-	pc, err := getProviderConfig(ctx, kube, mg)
+	pc, err := GetProviderConfig(ctx, kube, mg)
 	if err != nil {
 		return nil, Profile{}, errors.Wrapf(err, "cannot get provider config %s", mg.GetProviderConfigReference().Name)
 	}
@@ -91,7 +91,7 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	}), *profile, nil
 }
 
-func getProviderConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*v1alpha1.ProviderConfig, error) {
+func GetProviderConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*v1alpha1.ProviderConfig, error) {
 	pc := &v1alpha1.ProviderConfig{}
 	if err := kube.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, err

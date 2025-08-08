@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Upbound Inc.
+Copyright 2025 Upbound Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/upbound/provider-upbound/internal/controller/controlplane"
+	"github.com/upbound/provider-upbound/internal/controller/controlplanegroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/upbound/provider-upbound/internal/controller/config"
@@ -40,6 +42,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		robotteammembership.Setup,
 		team.Setup,
 		token.Setup,
+		controlplanegroup.Setup,
+		controlplane.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err
