@@ -64,7 +64,7 @@ var (
 	mu                    sync.Mutex
 )
 
-func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*up.Config, Profile, error) {
+func NewConfig(ctx context.Context, kube client.Client, mg resource.LegacyManaged) (*up.Config, Profile, error) {
 	pc, err := getProviderConfig(ctx, kube, mg)
 	if err != nil {
 		return nil, Profile{}, errors.Wrapf(err, "cannot get provider config %s", mg.GetProviderConfigReference().Name)
@@ -92,7 +92,7 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	}), *profile, nil
 }
 
-func getProviderConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*v1alpha1.ProviderConfig, error) {
+func getProviderConfig(ctx context.Context, kube client.Client, mg resource.LegacyManaged) (*v1alpha1.ProviderConfig, error) {
 	pc := &v1alpha1.ProviderConfig{}
 	if err := kube.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, err
