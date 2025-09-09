@@ -35,6 +35,7 @@ func (mg *Permission) ResolveReferences(ctx context.Context, c client.Reader) er
 	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.TeamID),
 		Extract:      reference.ExternalName(),
+		Namespace:    mg.GetNamespace(),
 		Reference:    mg.Spec.ForProvider.TeamIDRef,
 		Selector:     mg.Spec.ForProvider.TeamIDSelector,
 		To: reference.To{
@@ -51,6 +52,7 @@ func (mg *Permission) ResolveReferences(ctx context.Context, c client.Reader) er
 	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.Repository),
 		Extract:      reference.ExternalName(),
+		Namespace:    mg.GetNamespace(),
 		Reference:    mg.Spec.ForProvider.RepositoryRef,
 		Selector:     mg.Spec.ForProvider.RepositorySelector,
 		To: reference.To{

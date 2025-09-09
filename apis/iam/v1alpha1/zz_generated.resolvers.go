@@ -34,6 +34,7 @@ func (mg *RobotTeamMembership) ResolveReferences(ctx context.Context, c client.R
 	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.RobotID),
 		Extract:      reference.ExternalName(),
+		Namespace:    mg.GetNamespace(),
 		Reference:    mg.Spec.ForProvider.RobotIDRef,
 		Selector:     mg.Spec.ForProvider.RobotIDSelector,
 		To: reference.To{
@@ -50,6 +51,7 @@ func (mg *RobotTeamMembership) ResolveReferences(ctx context.Context, c client.R
 	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.TeamID),
 		Extract:      reference.ExternalName(),
+		Namespace:    mg.GetNamespace(),
 		Reference:    mg.Spec.ForProvider.TeamIDRef,
 		Selector:     mg.Spec.ForProvider.TeamIDSelector,
 		To: reference.To{
