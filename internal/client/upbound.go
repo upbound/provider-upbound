@@ -49,6 +49,7 @@ const (
 	CookieName = "SID"
 
 	errNoIDInToken         = "no user id in personal access token"
+	errInvalidAPIEndpoint  = "unable to parse the API endpoint"
 	errLoginFailed         = "unable to login"
 	loginPath              = "/v1/login"
 	errReadBody            = "unable to read response body"
@@ -142,7 +143,11 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
-	loginURL := createLoginURL(DefaultAPIEndpoint)
+	ep, err := getAPIEndpoint(pc)
+	if err != nil {
+		return nil, errors.Wrap(err, errInvalidAPIEndpoint)
+	}
+	loginURL := createLoginURL(ep)
 	req, err := createLoginRequest(ctx, loginURL, jsonStr)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
