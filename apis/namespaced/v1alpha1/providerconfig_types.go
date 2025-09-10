@@ -54,9 +54,8 @@ type ProviderConfigStatus struct {
 	xpv1.ProviderConfigStatus `json:",inline"`
 }
 
-// +kubebuilder:object:root=true
-
 // A ProviderConfig configures an Upbound provider.
+// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
@@ -69,9 +68,8 @@ type ProviderConfig struct {
 	Status ProviderConfigStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // ProviderConfigList contains a list of ProviderConfig.
+// +kubebuilder:object:root=true
 type ProviderConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -79,6 +77,7 @@ type ProviderConfigList struct {
 }
 
 // A ClusterProviderConfig configures an Upbound provider.
+// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
@@ -91,9 +90,8 @@ type ClusterProviderConfig struct {
 	Status ProviderConfigStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // ClusterProviderConfigList contains a list of ProviderConfig.
+// +kubebuilder:object:root=true
 type ClusterProviderConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -45,11 +45,11 @@ type PermissionParameters struct {
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.
-	TeamIDRef *xpv1.Reference `json:"teamIdRef,omitempty"`
+	TeamIDRef *xpv1.NamespacedReference `json:"teamIdRef,omitempty"`
 
 	// TeamIDSelector selects a reference to a Team in order to retrieve its
 	// teamId.
-	TeamIDSelector *xpv1.Selector `json:"teamIdSelector,omitempty"`
+	TeamIDSelector *xpv1.NamespacedSelector `json:"teamIdSelector,omitempty"`
 
 	// Repository of the repository to add the permission to. Either repository or repositoryRef or
 	// repositorySelector is required.
@@ -57,11 +57,11 @@ type PermissionParameters struct {
 	Repository *string `json:"repository,omitempty"`
 
 	// RepositoryRef references a Repository to and retrieves its name.
-	RepositoryRef *xpv1.Reference `json:"repositoryRef,omitempty"`
+	RepositoryRef *xpv1.NamespacedReference `json:"repositoryRef,omitempty"`
 
 	// RepositorySelector selects a reference to a Repository in order to retrieve its
 	// name.
-	RepositorySelector *xpv1.Selector `json:"repositorySelector,omitempty"`
+	RepositorySelector *xpv1.NamespacedSelector `json:"repositorySelector,omitempty"`
 }
 
 // PermissionObservation are the observable fields of a Permission.

@@ -5,17 +5,17 @@ import (
 	"errors"
 	"testing"
 
-	managed "github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
-	cmp "github.com/google/go-cmp/cmp"
-	cmpopts "github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/upbound/up-sdk-go/service/repositories"
 	repos "github.com/upbound/up-sdk-go/service/repositories"
 
-	"github.com/upbound/provider-upbound/apis/repository/v1alpha1"
+	"github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
 )
 
 func TestObserve(t *testing.T) {

@@ -34,11 +34,11 @@ type RobotTeamMembershipParameters struct {
 	RobotID *string `json:"robotId,omitempty"`
 
 	// RobotIDRef references a Robot to and retrieves its robotId.
-	RobotIDRef *xpv1.Reference `json:"robotIdRef,omitempty"`
+	RobotIDRef *xpv1.NamespacedReference `json:"robotIdRef,omitempty"`
 
 	// RobotIDSelector selects a reference to a Robot in order to retrieve its
 	// robotId.
-	RobotIDSelector *xpv1.Selector `json:"robotIdSelector,omitempty"`
+	RobotIDSelector *xpv1.NamespacedSelector `json:"robotIdSelector,omitempty"`
 
 	// TeamID of the team to add the robot to. Either teamId or teamIdRef or
 	// teamIdSelector is required.
@@ -46,11 +46,11 @@ type RobotTeamMembershipParameters struct {
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.
-	TeamIDRef *xpv1.Reference `json:"teamIdRef,omitempty"`
+	TeamIDRef *xpv1.NamespacedReference `json:"teamIdRef,omitempty"`
 
 	// TeamIDSelector selects a reference to a Team in order to retrieve its
 	// teamId.
-	TeamIDSelector *xpv1.Selector `json:"teamIdSelector,omitempty"`
+	TeamIDSelector *xpv1.NamespacedSelector `json:"teamIdSelector,omitempty"`
 }
 
 // RobotTeamMembershipObservation are the observable fields of a RobotTeamMembership.

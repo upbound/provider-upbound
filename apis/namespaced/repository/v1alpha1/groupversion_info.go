@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains the v1alpha1 group Repository resources of the Upbound provider.
 // +kubebuilder:object:generate=true
-// +groupName=repository.upbound.io
+// +groupName=repository.m.upbound.io
 // +versionName=v1alpha1
 package v1alpha1
 

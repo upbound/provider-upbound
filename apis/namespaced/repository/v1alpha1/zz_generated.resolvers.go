@@ -27,12 +27,12 @@ import (
 
 // ResolveReferences of this Permission.
 func (mg *Permission) ResolveReferences(ctx context.Context, c client.Reader) error {
-	r := reference.NewAPIResolver(c, mg)
+	r := reference.NewAPINamespacedResolver(c, mg)
 
-	var rsp reference.ResolutionResponse
+	var rsp reference.NamespacedResolutionResponse
 	var err error
 
-	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+	rsp, err = r.Resolve(ctx, reference.NamespacedResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.TeamID),
 		Extract:      reference.ExternalName(),
 		Namespace:    mg.GetNamespace(),
@@ -49,7 +49,7 @@ func (mg *Permission) ResolveReferences(ctx context.Context, c client.Reader) er
 	mg.Spec.ForProvider.TeamID = reference.ToPtrValue(rsp.ResolvedValue)
 	mg.Spec.ForProvider.TeamIDRef = rsp.ResolvedReference
 
-	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+	rsp, err = r.Resolve(ctx, reference.NamespacedResolutionRequest{
 		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.Repository),
 		Extract:      reference.ExternalName(),
 		Namespace:    mg.GetNamespace(),

@@ -25,9 +25,8 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
-// +kubebuilder:object:root=true
-
 // A ProviderConfigUsage indicates that a resource is using a ProviderConfig.
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
@@ -40,9 +39,8 @@ type ProviderConfigUsage struct {
 	xpv1.ProviderConfigUsage `json:",inline"`
 }
 
-// +kubebuilder:object:root=true
-
 // ProviderConfigUsageList contains a list of ProviderConfigUsage
+// +kubebuilder:object:root=true
 type ProviderConfigUsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -50,6 +48,7 @@ type ProviderConfigUsageList struct {
 }
 
 // A ClusterProviderConfigUsage indicates that a resource is using a ClusterProviderConfig.
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
@@ -62,9 +61,8 @@ type ClusterProviderConfigUsage struct {
 	xpv1.ProviderConfigUsage `json:",inline"`
 }
 
-// +kubebuilder:object:root=true
-
 // ClusterProviderConfigUsageList contains a list of ProviderConfigUsage
+// +kubebuilder:object:root=true
 type ClusterProviderConfigUsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
