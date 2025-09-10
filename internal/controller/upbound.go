@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Upbound Inc.
+Copyright 2025 Upbound Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,33 +17,19 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/upbound/provider-upbound/internal/controller/config"
-	"github.com/upbound/provider-upbound/internal/controller/repository"
-	"github.com/upbound/provider-upbound/internal/controller/repositorypermission"
-	"github.com/upbound/provider-upbound/internal/controller/robot"
-	"github.com/upbound/provider-upbound/internal/controller/robotteammembership"
-	"github.com/upbound/provider-upbound/internal/controller/team"
-	"github.com/upbound/provider-upbound/internal/controller/token"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+
+	controllercluster "github.com/upbound/provider-upbound/internal/controller/cluster"
 )
 
 // Setup creates all Upbound controllers with the supplied logger and adds them to
 // the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	for _, setup := range []func(ctrl.Manager, controller.Options) error{
-		config.Setup,
-		repository.Setup,
-		repositorypermission.Setup,
-		robot.Setup,
-		robotteammembership.Setup,
-		team.Setup,
-		token.Setup,
-	} {
-		if err := setup(mgr, o); err != nil {
-			return err
-		}
+	if err := controllercluster.Setup(mgr, o); err != nil {
+		return errors.Wrap(err, "failed to setup controllers related to cluster-scoped managed resources")
 	}
 	return nil
 }
