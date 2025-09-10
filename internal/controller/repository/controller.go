@@ -34,8 +34,8 @@ import (
 	"github.com/upbound/up-sdk-go/service/repositories"
 	repos "github.com/upbound/up-sdk-go/service/repositories"
 
-	"github.com/upbound/provider-upbound/apis/repository/v1alpha1"
-	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	repov1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
+	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/repository"
 	"github.com/upbound/provider-upbound/internal/features"
@@ -50,12 +50,12 @@ const (
 
 // Setup adds a controller that reconciles Repository managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.RepositoryGroupKind)
+	name := managed.ControllerName(repov1alpha1cluster.RepositoryGroupKind)
 	initializers := []managed.Initializer{managed.NewNameAsExternalName(mgr.GetClient())}
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnecter(&connector{
 			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -69,14 +69,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.RepositoryGroupVersionKind),
+		resource.ManagedKind(repov1alpha1cluster.RepositoryGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Repository{}).
+		For(&repov1alpha1cluster.Repository{}).
 		Complete(r)
 }
 
@@ -93,7 +93,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Repository)
+	cr, ok := mg.(*repov1alpha1cluster.Repository)
 	if !ok {
 		return nil, errors.New(errNotRepository)
 	}
@@ -124,7 +124,7 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Repository)
+	cr, ok := mg.(*repov1alpha1cluster.Repository)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotRepository)
 	}
@@ -159,7 +159,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Repository)
+	cr, ok := mg.(*repov1alpha1cluster.Repository)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRepository)
 	}
@@ -174,7 +174,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.Repository)
+	cr, ok := mg.(*repov1alpha1cluster.Repository)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotRepository)
 	}
@@ -190,7 +190,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*v1alpha1.Repository)
+	cr, ok := mg.(*repov1alpha1cluster.Repository)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotRepository)
 	}

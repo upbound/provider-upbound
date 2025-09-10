@@ -19,13 +19,10 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -38,7 +35,7 @@ import (
 
 	"github.com/upbound/up-sdk-go"
 
-	"github.com/upbound/provider-upbound/apis/v1alpha1"
+	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 )
 
 const (
@@ -92,19 +89,19 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.LegacyManage
 	}), *profile, nil
 }
 
-func getProviderConfig(ctx context.Context, kube client.Client, mg resource.LegacyManaged) (*v1alpha1.ProviderConfig, error) {
-	pc := &v1alpha1.ProviderConfig{}
+func getProviderConfig(ctx context.Context, kube client.Client, mg resource.LegacyManaged) (*apisv1alpha1cluster.ProviderConfig, error) {
+	pc := &apisv1alpha1cluster.ProviderConfig{}
 	if err := kube.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, err
 	}
 	return pc, nil
 }
 
-func getCredentials(ctx context.Context, kube client.Client, pc *v1alpha1.ProviderConfig) ([]byte, error) {
+func getCredentials(ctx context.Context, kube client.Client, pc *apisv1alpha1cluster.ProviderConfig) ([]byte, error) {
 	return resource.CommonCredentialExtractor(ctx, pc.Spec.Credentials.Source, kube, pc.Spec.Credentials.CommonCredentialSelectors)
 }
 
-func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.ProviderConfig) (*Profile, error) { //nolint:gocyclo
+func createOrUpdateProfile(ctx context.Context, data []byte, pc *apisv1alpha1cluster.ProviderConfig) (*Profile, error) { //nolint:gocyclo
 	// use this shared to avoid get new session-token for each reconcile
 	mu.Lock()
 	defer mu.Unlock()
@@ -154,12 +151,12 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	res, err := client.Do(req)
+	cli := &http.Client{}
+	res, err := cli.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
-	defer res.Body.Close() // nolint:gosec,errcheck
+	defer func() { _ = res.Body.Close() }()
 
 	session, err := extractSession(res, CookieName)
 	if err != nil {
@@ -195,7 +192,7 @@ func createLoginRequest(ctx context.Context, loginURL *url.URL, jsonStr []byte) 
 	return req, nil
 }
 
-func getAPIEndpoint(pc *v1alpha1.ProviderConfig) (*url.URL, error) {
+func getAPIEndpoint(pc *apisv1alpha1cluster.ProviderConfig) (*url.URL, error) {
 	if pc.Spec.Endpoint == nil {
 		// Use a default API endpoint when not specified in the provider config
 		apiEndpoint := DefaultAPIEndpoint
@@ -235,24 +232,6 @@ func createUpClient(apiEndpoint *url.URL, session string) up.Client {
 	})
 
 	return cl
-}
-
-// ExtractUserIDFromToken extracts userId from SessionToken
-func ExtractUserIDFromToken(sToken string) (string, error) {
-	token := strings.Split(sToken, ".")
-	if len(token) != 3 {
-		return "", errors.New("invalid token format")
-	}
-
-	claimsData, _ := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(token[1])
-
-	var claims map[string]interface{}
-	err := json.Unmarshal(claimsData, &claims)
-	if err != nil {
-		return "", errors.Wrap(err, "unable to unmarshal token claims")
-	}
-
-	return fmt.Sprintf("%d", claims["id"]), nil
 }
 
 // constructAuth constructs the body of an Upbound Cloud authentication request

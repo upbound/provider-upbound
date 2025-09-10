@@ -34,8 +34,8 @@ import (
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/accounts"
 
-	"github.com/upbound/provider-upbound/apis/iam/v1alpha1"
-	apisv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	iamv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1"
+	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/teams"
 	"github.com/upbound/provider-upbound/internal/features"
@@ -50,11 +50,11 @@ const (
 
 // Setup adds a controller that reconciles Team managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.TeamGroupKind)
+	name := managed.ControllerName(iamv1alpha1cluster.TeamGroupKind)
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnecter(&connector{
 			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -68,14 +68,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.TeamGroupVersionKind),
+		resource.ManagedKind(iamv1alpha1cluster.TeamGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Team{}).
+		For(&iamv1alpha1cluster.Team{}).
 		Complete(r)
 }
 
@@ -92,7 +92,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*iamv1alpha1cluster.Team)
 	if !ok {
 		return nil, errors.New(errNotTeam)
 	}
@@ -127,7 +127,7 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*iamv1alpha1cluster.Team)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotTeam)
 	}
@@ -148,7 +148,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Team)
+	cr, ok := mg.(*iamv1alpha1cluster.Team)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotTeam)
 	}

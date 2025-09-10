@@ -20,9 +20,9 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	iamv1alpha1 "github.com/upbound/provider-upbound/apis/iam/v1alpha1"
-	repository1alpha1 "github.com/upbound/provider-upbound/apis/repository/v1alpha1"
-	upboundv1alpha1 "github.com/upbound/provider-upbound/apis/v1alpha1"
+	iamv1alpha1 "github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1"
+	repository1alpha1 "github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
+	upboundv1alpha1 "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 )
 
 func init() {

@@ -39,7 +39,7 @@ type PermissionParameters struct {
 
 	// TeamID of the team to add the robot to. Either teamId or teamIdRef or
 	// teamIdSelector is required.
-	// +crossplane:generate:reference:type=github.com/upbound/provider-upbound/apis/iam/v1alpha1.Team
+	// +crossplane:generate:reference:type=github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1.Team
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.

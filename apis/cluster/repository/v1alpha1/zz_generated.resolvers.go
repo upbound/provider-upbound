@@ -21,7 +21,7 @@ import (
 	"context"
 	reference "github.com/crossplane/crossplane-runtime/v2/pkg/reference"
 	errors "github.com/pkg/errors"
-	v1alpha1 "github.com/upbound/provider-upbound/apis/iam/v1alpha1"
+	v1alpha1 "github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
