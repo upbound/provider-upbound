@@ -20,16 +20,22 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	xpv2controller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
 	controllercluster "github.com/upbound/provider-upbound/internal/controller/cluster"
+	controller "github.com/upbound/provider-upbound/internal/controller/namespaced"
 )
 
 // Setup creates all Upbound controllers with the supplied logger and adds them to
 // the supplied manager.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+func Setup(mgr ctrl.Manager, o xpv2controller.Options) error {
 	if err := controllercluster.Setup(mgr, o); err != nil {
 		return errors.Wrap(err, "failed to setup controllers related to cluster-scoped managed resources")
 	}
+
+	if err := controller.Setup(mgr, o); err != nil {
+		return errors.Wrap(err, "failed to setup controllers related to namespaced managed resources")
+	}
+
 	return nil
 }

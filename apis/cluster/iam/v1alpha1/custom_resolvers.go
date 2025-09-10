@@ -19,9 +19,10 @@ package v1alpha1
 import (
 	"context"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reference"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (mg *Token) ResolveReferences(ctx context.Context, c client.Reader) error {

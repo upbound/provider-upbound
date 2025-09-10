@@ -36,27 +36,23 @@ import (
 	"github.com/upbound/up-sdk-go/service/organizations"
 	"github.com/upbound/up-sdk-go/service/robots"
 
-	iamv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1"
-	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
+	iamv1alpha1 "github.com/upbound/provider-upbound/apis/namespaced/iam/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
-	"github.com/upbound/provider-upbound/internal/controller/cluster/config"
+	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
-	errNotRobot     = "managed resource is not a Robot custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
-
+	errNotRobot  = "managed resource is not a Robot custom resource"
 	errNewClient = "cannot create new Service"
 )
 
 // Setup adds a controller that reconciles Robot managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(iamv1alpha1cluster.RobotGroupKind)
+	name := managed.ControllerName(iamv1alpha1.RobotGroupKind)
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
+			kube: mgr.GetClient(),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -70,22 +66,21 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(iamv1alpha1cluster.RobotGroupVersionKind),
+		resource.ManagedKind(iamv1alpha1.RobotGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&iamv1alpha1cluster.Robot{}).
+		For(&iamv1alpha1.Robot{}).
 		Complete(r)
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube  client.Client
-	usage *resource.LegacyProviderConfigUsageTracker
+	kube client.Client
 }
 
 // Connect typically produces an ExternalClient by:
@@ -94,13 +89,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Robot)
+	cr, ok := mg.(*iamv1alpha1.Robot)
 	if !ok {
 		return nil, errors.New(errNotRobot)
-	}
-
-	if err := c.usage.Track(ctx, mg.(resource.LegacyManaged)); err != nil {
-		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
 	cfg, _, err := upclient.NewConfig(ctx, c.kube, config.GetProviderConfigSpecFn(cr))
@@ -126,8 +117,8 @@ type external struct {
 	organizations *organizations.Client
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Robot)
+func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*iamv1alpha1.Robot)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotRobot)
 	}
@@ -139,7 +130,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, "cannot parse external name as a uuid")
 	}
-	resp, err := c.robots.Get(ctx, id)
+	resp, err := e.robots.Get(ctx, id)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get robot")
 	}
@@ -152,8 +143,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}, nil
 }
 
-func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Robot)
+func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	cr, ok := mg.(*iamv1alpha1.Robot)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRobot)
 	}
@@ -162,14 +153,14 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		if cr.Spec.ForProvider.Owner.Name == nil {
 			return managed.ExternalCreation{}, errors.New("organization name or id must be specified")
 		}
-		o, err := c.organizations.GetOrgID(ctx, *cr.Spec.ForProvider.Owner.Name)
+		o, err := e.organizations.GetOrgID(ctx, *cr.Spec.ForProvider.Owner.Name)
 		if err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "cannot get organization id")
 		}
 		id = strconv.FormatUint(uint64(o), 10)
 	}
 
-	resp, err := c.robots.Create(ctx, &robots.RobotCreateParameters{
+	resp, err := e.robots.Create(ctx, &robots.RobotCreateParameters{
 		Attributes: robots.RobotAttributes{
 			Name:        cr.Spec.ForProvider.Name,
 			Description: cr.Spec.ForProvider.Description,
@@ -190,13 +181,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
+func (e *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
 	// There is no Update endpoints in robots API.
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Robot)
+func (e *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	cr, ok := mg.(*iamv1alpha1.Robot)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotRobot)
 	}
@@ -205,5 +196,5 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as a uuid")
 	}
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.robots.Delete(ctx, id)), "cannot delete robot")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, e.robots.Delete(ctx, id)), "cannot delete robot")
 }

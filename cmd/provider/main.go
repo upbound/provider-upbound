@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 
 	apiscluster "github.com/upbound/provider-upbound/apis/cluster"
+	apis "github.com/upbound/provider-upbound/apis/namespaced"
 	"github.com/upbound/provider-upbound/internal/bootcheck"
 	upbound "github.com/upbound/provider-upbound/internal/controller"
 	"github.com/upbound/provider-upbound/internal/features"
@@ -78,7 +79,8 @@ func main() {
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	kingpin.FatalIfError(err, "Cannot create controller manager")
-	kingpin.FatalIfError(apiscluster.AddToScheme(mgr.GetScheme()), "Cannot add Upbound APIs to scheme")
+	kingpin.FatalIfError(apiscluster.AddToScheme(mgr.GetScheme()), "Cannot add cluster-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add namespace-scoped Upbound MR APIs to scheme")
 
 	o := controller.Options{
 		Logger:                  logger,

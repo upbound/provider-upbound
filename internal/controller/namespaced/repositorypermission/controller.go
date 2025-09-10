@@ -31,28 +31,24 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	repov1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
-	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
+	repov1alpha1 "github.com/upbound/provider-upbound/apis/namespaced/repository/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/repositorypermission"
-	"github.com/upbound/provider-upbound/internal/controller/cluster/config"
+	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
 	errNotPermission = "managed resource is not a RepositoryPermission custom resource"
-	errTrackPCUsage  = "cannot track ProviderConfig usage"
-
-	errNewClient = "cannot create new client"
+	errNewClient     = "cannot create new client"
 )
 
 // Setup adds a controller that reconciles Permission managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(repov1alpha1cluster.PermissionGroupKind)
+	name := managed.ControllerName(repov1alpha1.PermissionGroupKind)
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
+			kube: mgr.GetClient(),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -66,22 +62,21 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(repov1alpha1cluster.PermissionGroupVersionKind),
+		resource.ManagedKind(repov1alpha1.PermissionGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&repov1alpha1cluster.Permission{}).
+		For(&repov1alpha1.Permission{}).
 		Complete(r)
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube  client.Client
-	usage *resource.LegacyProviderConfigUsageTracker
+	kube client.Client
 }
 
 // Connect typically produces an ExternalClient by:
@@ -90,13 +85,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Permission)
+	cr, ok := mg.(*repov1alpha1.Permission)
 	if !ok {
 		return nil, errors.New(errNotPermission)
-	}
-
-	if err := c.usage.Track(ctx, mg.(resource.LegacyManaged)); err != nil {
-		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
 	cfg, _, err := upclient.NewConfig(ctx, c.kube, config.GetProviderConfigSpecFn(cr))
@@ -105,7 +96,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		repositorypermission: repositorypermission.NewClient(cfg),
+		permissionsCli: repositorypermission.NewClient(cfg),
 	}, nil
 }
 
@@ -119,16 +110,16 @@ func (e *external) Disconnect(_ context.Context) error {
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an Upbound SDK client.
-	repositorypermission *repositorypermission.Client
+	permissionsCli *repositorypermission.Client
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Permission)
+func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*repov1alpha1.Permission)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotPermission)
 	}
 
-	err := c.repositorypermission.Get(ctx, &repositorypermission.GetParameters{
+	err := e.permissionsCli.Get(ctx, &repositorypermission.GetParameters{
 		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
 		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
@@ -144,13 +135,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}, nil
 }
 
-func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Permission)
+func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	cr, ok := mg.(*repov1alpha1.Permission)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotPermission)
 	}
 
-	err := c.repositorypermission.Create(ctx, &repositorypermission.CreateParameters{
+	err := e.permissionsCli.Create(ctx, &repositorypermission.CreateParameters{
 		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
 		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
@@ -165,21 +156,21 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
+func (e *external) Update(_ context.Context, _ resource.Managed) (managed.ExternalUpdate, error) {
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Permission)
+func (e *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	cr, ok := mg.(*repov1alpha1.Permission)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotPermission)
 	}
 
-	err := c.repositorypermission.Delete(ctx, &repositorypermission.GetParameters{
+	err := e.permissionsCli.Delete(ctx, &repositorypermission.GetParameters{
 		Repository:   ptr.Deref(cr.Spec.ForProvider.Repository, ""),
 		Organization: cr.Spec.ForProvider.OrganizationName,
 		TeamID:       ptr.Deref(cr.Spec.ForProvider.TeamID, ""),
 	})
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete repositroy permission")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot delete repository permission")
 
 }

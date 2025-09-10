@@ -38,6 +38,7 @@ import (
 	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/teams"
+	"github.com/upbound/provider-upbound/internal/controller/cluster/config"
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
@@ -52,7 +53,7 @@ const (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := managed.ControllerName(iamv1alpha1cluster.TeamGroupKind)
 	reconcilerOpts := []managed.ReconcilerOption{
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:  mgr.GetClient(),
 			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
 		}),
@@ -101,7 +102,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	cfg, _, err := upclient.NewConfig(ctx, c.kube, cr)
+	cfg, _, err := upclient.NewConfig(ctx, c.kube, config.GetProviderConfigSpecFn(cr))
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}

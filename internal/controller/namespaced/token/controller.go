@@ -37,27 +37,23 @@ import (
 	"github.com/upbound/up-sdk-go/service/robots"
 	"github.com/upbound/up-sdk-go/service/tokens"
 
-	iamv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/iam/v1alpha1"
-	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
+	iamv1alpha1 "github.com/upbound/provider-upbound/apis/namespaced/iam/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
-	"github.com/upbound/provider-upbound/internal/controller/cluster/config"
+	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
-	errNotToken     = "managed resource is not a Token custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
-
+	errNotToken  = "managed resource is not a Token custom resource"
 	errNewClient = "cannot create new client"
 )
 
 // Setup adds a controller that reconciles Token managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(iamv1alpha1cluster.TokenGroupKind)
+	name := managed.ControllerName(iamv1alpha1.TokenGroupKind)
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
+			kube: mgr.GetClient(),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -71,22 +67,21 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(iamv1alpha1cluster.TokenGroupVersionKind),
+		resource.ManagedKind(iamv1alpha1.TokenGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&iamv1alpha1cluster.Token{}).
+		For(&iamv1alpha1.Token{}).
 		Complete(r)
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube  client.Client
-	usage *resource.LegacyProviderConfigUsageTracker
+	kube client.Client
 }
 
 // Connect typically produces an ExternalClient by:
@@ -95,13 +90,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Token)
+	cr, ok := mg.(*iamv1alpha1.Token)
 	if !ok {
 		return nil, errors.New(errNotToken)
-	}
-
-	if err := c.usage.Track(ctx, mg.(resource.LegacyManaged)); err != nil {
-		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
 	cfg, _, err := upclient.NewConfig(ctx, c.kube, config.GetProviderConfigSpecFn(cr))
@@ -131,8 +122,8 @@ type external struct {
 	robots   *robots.Client
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Token)
+func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*iamv1alpha1.Token)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotToken)
 	}
@@ -144,7 +135,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, fmt.Sprintf("failed to parse external name as UUID %s", meta.GetExternalName(cr)))
 	}
-	resp, err := c.tokens.Get(ctx, uid)
+	resp, err := e.tokens.Get(ctx, uid)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
 	}
@@ -155,12 +146,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}, nil
 }
 
-func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Token)
+func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	cr, ok := mg.(*iamv1alpha1.Token)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotToken)
 	}
-	resp, err := c.tokens.Create(ctx, &tokens.TokenCreateParameters{
+	resp, err := e.tokens.Create(ctx, &tokens.TokenCreateParameters{
 		Attributes: tokens.TokenAttributes{
 			Name: cr.Spec.ForProvider.Name,
 		},
@@ -188,13 +179,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}, nil
 }
 
-func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Token)
+func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*iamv1alpha1.Token)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotToken)
 	}
 
-	_, err := c.tokens.Update(ctx, &tokens.TokenUpdateParameters{
+	_, err := e.tokens.Update(ctx, &tokens.TokenUpdateParameters{
 		Attributes: tokens.TokenAttributes{
 			Name: cr.Spec.ForProvider.Name,
 		},
@@ -202,8 +193,8 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, errors.Wrap(err, "failed to update token")
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*iamv1alpha1cluster.Token)
+func (e *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	cr, ok := mg.(*iamv1alpha1.Token)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotToken)
 	}
@@ -211,5 +202,5 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot parse external name as UUID")
 	}
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.tokens.Delete(ctx, uid)), "failed to delete token")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, e.tokens.Delete(ctx, uid)), "failed to delete token")
 }

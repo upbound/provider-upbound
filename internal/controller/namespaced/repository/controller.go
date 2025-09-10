@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Upbound Inc.
+Copyright 2025 Upbound Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,29 +34,25 @@ import (
 	"github.com/upbound/up-sdk-go/service/repositories"
 	repos "github.com/upbound/up-sdk-go/service/repositories"
 
-	repov1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
-	apisv1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
+	repov1alpha1 "github.com/upbound/provider-upbound/apis/namespaced/repository/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/repository"
-	"github.com/upbound/provider-upbound/internal/controller/cluster/config"
+	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
 	errNotRepository = "managed resource is not a Repository custom resource"
-	errTrackPCUsage  = "cannot track ProviderConfig usage"
-
-	errNewClient = "cannot create new Service"
+	errNewClient     = "cannot create new Service"
 )
 
 // Setup adds a controller that reconciles Repository managed resources.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(repov1alpha1cluster.RepositoryGroupKind)
+	name := managed.ControllerName(repov1alpha1.RepositoryGroupKind)
 	initializers := []managed.Initializer{managed.NewNameAsExternalName(mgr.GetClient())}
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
+			kube: mgr.GetClient(),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
@@ -70,22 +66,21 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(repov1alpha1cluster.RepositoryGroupVersionKind),
+		resource.ManagedKind(repov1alpha1.RepositoryGroupVersionKind),
 		reconcilerOpts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&repov1alpha1cluster.Repository{}).
+		For(&repov1alpha1.Repository{}).
 		Complete(r)
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube  client.Client
-	usage *resource.LegacyProviderConfigUsageTracker
+	kube client.Client
 }
 
 // Connect typically produces an ExternalClient by:
@@ -94,13 +89,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Repository)
+	cr, ok := mg.(*repov1alpha1.Repository)
 	if !ok {
 		return nil, errors.New(errNotRepository)
-	}
-
-	if err := c.usage.Track(ctx, mg.(resource.LegacyManaged)); err != nil {
-		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
 	cfg, _, err := upclient.NewConfig(ctx, c.kube, config.GetProviderConfigSpecFn(cr))
@@ -124,8 +115,8 @@ type external struct {
 	repositories RepoClient
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Repository)
+func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*repov1alpha1.Repository)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotRepository)
 	}
@@ -134,7 +125,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, nil
 	}
 
-	resp, err := c.repositories.Get(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))
+	resp, err := e.repositories.Get(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get repository")
 	}
@@ -148,10 +139,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	publishPolicy := repositories.PublishPolicy("draft")
 	if cr.Spec.ForProvider.Publish {
-		publishPolicy = repositories.PublishPolicy("publish")
+		publishPolicy = "publish"
 	}
 
-	resourceUpToDate := cr.Spec.ForProvider.Public == resp.Public || ptr.Deref(resp.Publish, repositories.PublishPolicy("")) == publishPolicy
+	resourceUpToDate := cr.Spec.ForProvider.Public == resp.Public || ptr.Deref(resp.Publish, "") == publishPolicy
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
@@ -159,14 +150,14 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}, nil
 }
 
-func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Repository)
+func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	cr, ok := mg.(*repov1alpha1.Repository)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotRepository)
 	}
 	visibility := createOrUpdatePublic(cr.Spec.ForProvider.Public)
 	publishPolicy := createOrUpdatePublish(cr.Spec.ForProvider.Publish)
-	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
+	err := e.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create repository")
 	}
@@ -174,15 +165,15 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalCreation{}, nil
 }
 
-func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Repository)
+func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*repov1alpha1.Repository)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotRepository)
 	}
 	visibility := createOrUpdatePublic(cr.Spec.ForProvider.Public)
 	publishPolicy := createOrUpdatePublish(cr.Spec.ForProvider.Publish)
 
-	err := c.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
+	err := e.repositories.CreateOrUpdateWithOptions(ctx, cr.Spec.ForProvider.OrganizationName, cr.Spec.ForProvider.Name, visibility, publishPolicy)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update repository")
 	}
@@ -190,13 +181,13 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*repov1alpha1cluster.Repository)
+func (e *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	cr, ok := mg.(*repov1alpha1.Repository)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotRepository)
 	}
 
-	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, c.repositories.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete repository")
+	return managed.ExternalDelete{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, e.repositories.Delete(ctx, cr.Spec.ForProvider.OrganizationName, meta.GetExternalName(cr))), "cannot delete repository")
 }
 
 func createOrUpdatePublic(isPublic bool) repositories.CreateOrUpdateOption {

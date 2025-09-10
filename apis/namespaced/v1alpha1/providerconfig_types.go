@@ -23,30 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+
+	pcv1alpha1common "github.com/upbound/provider-upbound/apis/common/providerconfig/v1alpha1"
 )
 
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
-	// Credentials required to authenticate to this provider.
-	Credentials ProviderCredentials `json:"credentials"`
-
-	// Upbound endpoint.
-	// Defaults to https://upbound.io
-	Endpoint *string `json:"endpoint,omitempty"`
-
-	// Upbound Organization.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	Organization string `json:"organization"`
-}
-
-// ProviderCredentials required to authenticate.
-type ProviderCredentials struct {
-	// Source of the provider credentials.
-	// +kubebuilder:validation:Enum=Secret
-	Source xpv1.CredentialsSource `json:"source"`
-
-	xpv1.CommonCredentialSelectors `json:",inline"`
+	pcv1alpha1common.ProviderConfigSpec `json:",inline"`
 }
 
 // A ProviderConfigStatus reflects the observed state of a ProviderConfig.
@@ -95,7 +78,7 @@ type ClusterProviderConfig struct {
 type ClusterProviderConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ProviderConfig `json:"items"`
+	Items           []ClusterProviderConfig `json:"items"`
 }
 
 // ProviderConfig type metadata.

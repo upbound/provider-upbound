@@ -218,11 +218,9 @@ spec:
                     type: string
                 required:
                 - accountId
-                - createdAt
                 - name
                 - official
                 - public
-                - publishPolicy
                 - repositoryId
                 type: object
               conditions:

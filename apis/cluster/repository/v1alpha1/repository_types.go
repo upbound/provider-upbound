@@ -20,9 +20,10 @@ import (
 	"reflect"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	sdk "github.com/upbound/up-sdk-go/service/repositories"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	repocommonv1alpha1 "github.com/upbound/provider-upbound/apis/common/repository/v1alpha1"
 )
 
 // RepositoryParameters are the configurable fields of a Repository.
@@ -50,16 +51,7 @@ type RepositoryParameters struct {
 
 // RepositoryObservation are the observable fields of a Repository.
 type RepositoryObservation struct {
-	Name           string              `json:"name"`
-	RepositoryID   uint                `json:"repositoryId"`
-	AccountID      uint                `json:"accountId"`
-	Type           *sdk.RepositoryType `json:"type,omitempty"`
-	Public         bool                `json:"public"`
-	Publish        *sdk.PublishPolicy  `json:"publishPolicy"`
-	Official       bool                `json:"official"`
-	CurrentVersion *string             `json:"currentVersion,omitempty"`
-	CreatedAt      metav1.Time         `json:"createdAt"`
-	UpdatedAt      *metav1.Time        `json:"updatedAt,omitempty"`
+	repocommonv1alpha1.RepositoryObservation `json:",inline"`
 }
 
 // A RepositorySpec defines the desired state of a Repository.
