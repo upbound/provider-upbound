@@ -1,0 +1,23 @@
+apiVersion: m.upbound.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  organization: upboundengineering
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: upbound-creds
+      key: creds
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: upbound-system
+  name: upbound-creds
+type: Opaque
+stringData:
+  creds: # <personal-access-token>
