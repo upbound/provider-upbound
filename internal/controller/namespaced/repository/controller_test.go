@@ -13,7 +13,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/upbound/up-sdk-go/service/repositories"
-	repos "github.com/upbound/up-sdk-go/service/repositories"
 
 	"github.com/upbound/provider-upbound/apis/namespaced/repository/v1alpha1"
 )
@@ -45,7 +44,7 @@ func TestObserve(t *testing.T) {
 		},
 		"RepoNotFound": {
 			setupMocks: func(m *mockClient) {
-				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
+				m.getFn = func(ctx context.Context, org, repo string) (*repositories.RepositoryResponse, error) {
 					return nil, errors.New("not found")
 				}
 			},
@@ -65,9 +64,9 @@ func TestObserve(t *testing.T) {
 		},
 		"RepoUpToDate": {
 			setupMocks: func(m *mockClient) {
-				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
-					return &repos.RepositoryResponse{
-						Repository: repos.Repository{
+				m.getFn = func(ctx context.Context, org, repo string) (*repositories.RepositoryResponse, error) {
+					return &repositories.RepositoryResponse{
+						Repository: repositories.Repository{
 							Public:  true,
 							Publish: ptr.To(repositories.PublishPolicy("publish")),
 						},
@@ -98,9 +97,9 @@ func TestObserve(t *testing.T) {
 		},
 		"RepoOutOfSync": {
 			setupMocks: func(m *mockClient) {
-				m.getFn = func(ctx context.Context, org, repo string) (*repos.RepositoryResponse, error) {
-					return &repos.RepositoryResponse{
-						Repository: repos.Repository{
+				m.getFn = func(ctx context.Context, org, repo string) (*repositories.RepositoryResponse, error) {
+					return &repositories.RepositoryResponse{
+						Repository: repositories.Repository{
 							Public:  false,
 							Publish: ptr.To(repositories.PublishPolicy("draft")),
 						},

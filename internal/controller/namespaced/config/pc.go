@@ -26,7 +26,6 @@ import (
 
 	pcv1alpha1common "github.com/upbound/provider-upbound/apis/common/providerconfig/v1alpha1"
 	"github.com/upbound/provider-upbound/apis/namespaced/v1alpha1"
-	apisv1alpha1namespaced "github.com/upbound/provider-upbound/apis/namespaced/v1alpha1"
 	"github.com/upbound/provider-upbound/internal/client"
 )
 
@@ -47,7 +46,7 @@ func GetProviderConfigSpecFn(mg resource.ModernManaged) client.GetProviderConfig
 			return nil, errors.New("empty provider config reference")
 		}
 
-		obj, err := kube.Scheme().New(apisv1alpha1namespaced.SchemeGroupVersion.WithKind(ref.Kind))
+		obj, err := kube.Scheme().New(v1alpha1.SchemeGroupVersion.WithKind(ref.Kind))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate provider config of kind %q referenced by managed resource %s/%s", ref.Kind, mg.GetNamespace(), mg.GetName())
 		}
@@ -62,10 +61,10 @@ func GetProviderConfigSpecFn(mg resource.ModernManaged) client.GetProviderConfig
 		}
 
 		switch pc := obj.(type) {
-		case *apisv1alpha1namespaced.ProviderConfig:
+		case *v1alpha1.ProviderConfig:
 			return &pc.Spec.ProviderConfigSpec, nil
 
-		case *apisv1alpha1namespaced.ClusterProviderConfig:
+		case *v1alpha1.ClusterProviderConfig:
 			return &pc.Spec.ProviderConfigSpec, nil
 
 		default:

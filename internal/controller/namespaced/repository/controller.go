@@ -32,7 +32,6 @@ import (
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/repositories"
-	repos "github.com/upbound/up-sdk-go/service/repositories"
 
 	repov1alpha1 "github.com/upbound/provider-upbound/apis/namespaced/repository/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
@@ -100,7 +99,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		repositories: &sdkClient{upstream: repos.NewClient(cfg)},
+		repositories: &sdkClient{upstream: repositories.NewClient(cfg)},
 	}, nil
 }
 
@@ -130,8 +129,8 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "cannot get repository")
 	}
 
-	repoList := repos.RepositoryListResponse{
-		Repositories: []repos.Repository{resp.Repository},
+	repoList := repositories.RepositoryListResponse{
+		Repositories: []repositories.Repository{resp.Repository},
 	}
 
 	cr.Status.SetConditions(v1.Available())
