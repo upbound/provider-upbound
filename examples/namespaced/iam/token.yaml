@@ -12,4 +12,3 @@ spec:
         name: serviceaccount
   writeConnectionSecretToRef:
     name: up-access-token
-    namespace: upbound-system
