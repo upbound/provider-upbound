@@ -33,14 +33,14 @@ import (
 // with the supplied logger and adds them to the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
-		config.SetupClusterScoped,
-		config.SetupNamespaced,
-		repository.Setup,
-		repositorypermission.Setup,
-		robot.Setup,
-		robotteammembership.Setup,
-		team.Setup,
-		token.Setup,
+		config.SetupClusterScopedGated,
+		config.SetupNamespacedGated,
+		repository.SetupGated,
+		repositorypermission.SetupGated,
+		robot.SetupGated,
+		robotteammembership.SetupGated,
+		team.SetupGated,
+		token.SetupGated,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

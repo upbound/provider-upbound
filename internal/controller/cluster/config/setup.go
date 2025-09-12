@@ -19,7 +19,7 @@ package config
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/providerconfig"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -27,9 +27,20 @@ import (
 	v1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 )
 
-// Setup adds a controller that reconciles ProviderConfigs by accounting for
-// their current usage.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+// SetupGated calls setup when the legacy
+// ProviderConfig GVR becomes available in the API.
+func SetupGated(mgr ctrl.Manager, o xpcontroller.Options) error {
+	o.Gate.Register(func() {
+		if err := setup(mgr, o); err != nil {
+			panic(err)
+		}
+	}, v1alpha1cluster.ProviderConfigGroupVersionKind)
+	return nil
+}
+
+// setup adds a controller that reconciles legacy ProviderConfigs by
+// accounting for their current usage.
+func setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	name := providerconfig.ControllerName(v1alpha1cluster.ProviderConfigGroupKind)
 
 	of := resource.ProviderConfigKinds{

@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -30,8 +32,10 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/gate"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/customresourcesgate"
 
 	apiscluster "github.com/upbound/provider-upbound/apis/cluster"
 	apis "github.com/upbound/provider-upbound/apis/namespaced"
@@ -81,6 +85,7 @@ func main() {
 	kingpin.FatalIfError(err, "Cannot create controller manager")
 	kingpin.FatalIfError(apiscluster.AddToScheme(mgr.GetScheme()), "Cannot add cluster-scoped Upbound MR APIs to scheme")
 	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add namespace-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(extv1.AddToScheme(mgr.GetScheme()), "Cannot add Core API Extensions to scheme")
 
 	o := controller.Options{
 		Logger:                  logger,
@@ -88,6 +93,7 @@ func main() {
 		PollInterval:            *pollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(*maxReconcileRate),
 		Features:                &feature.Flags{},
+		Gate:                    new(gate.Gate[schema.GroupVersionKind]),
 	}
 
 	if *enableManagementPolicies {
@@ -96,5 +102,6 @@ func main() {
 	}
 
 	kingpin.FatalIfError(upbound.Setup(mgr, o), "Cannot setup Upbound controllers")
+	kingpin.FatalIfError(customresourcesgate.Setup(mgr, o), "Cannot setup CustomResourcesGate controller")
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }

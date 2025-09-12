@@ -20,14 +20,11 @@ import (
 	"context"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
@@ -37,44 +34,12 @@ import (
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/repository"
 	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
-	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
 	errNotRepository = "managed resource is not a Repository custom resource"
 	errNewClient     = "cannot create new Service"
 )
-
-// Setup adds a controller that reconciles Repository managed resources.
-func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(repov1alpha1.RepositoryGroupKind)
-	initializers := []managed.Initializer{managed.NewNameAsExternalName(mgr.GetClient())}
-	reconcilerOpts := []managed.ReconcilerOption{
-		managed.WithExternalConnector(&connector{
-			kube: mgr.GetClient(),
-		}),
-		managed.WithPollInterval(o.PollInterval),
-		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
-		managed.WithInitializers(initializers...),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	}
-
-	if o.Features.Enabled(features.EnableAlphaManagementPolicies) {
-		reconcilerOpts = append(reconcilerOpts, managed.WithManagementPolicies())
-	}
-
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(repov1alpha1.RepositoryGroupVersionKind),
-		reconcilerOpts...)
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		WithEventFilter(resource.DesiredStateChanged()).
-		For(&repov1alpha1.Repository{}).
-		Complete(r)
-}
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.

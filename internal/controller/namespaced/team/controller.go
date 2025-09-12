@@ -21,14 +21,11 @@ import (
 	"fmt"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	uperrors "github.com/upbound/up-sdk-go/errors"
@@ -38,43 +35,12 @@ import (
 	upclient "github.com/upbound/provider-upbound/internal/client"
 	"github.com/upbound/provider-upbound/internal/client/teams"
 	"github.com/upbound/provider-upbound/internal/controller/namespaced/config"
-	"github.com/upbound/provider-upbound/internal/features"
 )
 
 const (
 	errNotTeam   = "managed resource is not a Team custom resource"
 	errNewClient = "cannot create new client"
 )
-
-// Setup adds a controller that reconciles Team managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(iamv1alpha1.TeamGroupKind)
-	reconcilerOpts := []managed.ReconcilerOption{
-		managed.WithExternalConnector(&connector{
-			kube: mgr.GetClient(),
-		}),
-		managed.WithPollInterval(o.PollInterval),
-		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
-		managed.WithInitializers(),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	}
-
-	if o.Features.Enabled(features.EnableAlphaManagementPolicies) {
-		reconcilerOpts = append(reconcilerOpts, managed.WithManagementPolicies())
-	}
-
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(iamv1alpha1.TeamGroupVersionKind),
-		reconcilerOpts...)
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		WithEventFilter(resource.DesiredStateChanged()).
-		For(&iamv1alpha1.Team{}).
-		Complete(r)
-}
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.

@@ -12,3 +12,6 @@ metadata:
       developed and supported by Upbound. If you encounter an issue please reach
       out on our support@upbound.io email address.
     friendly-name.meta.crossplane.io: Provider Upbound
+spec:
+  capabilities:
+    - safe-start

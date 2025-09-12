@@ -28,9 +28,20 @@ import (
 	"github.com/upbound/provider-upbound/apis/namespaced/v1alpha1"
 )
 
-// SetupNamespaced adds a controller that reconciles namespaced ProviderConfigs
+// SetupNamespacedGated calls setupNamespaced when the namespaced
+// ProviderConfig GVR becomes available in the API.
+func SetupNamespacedGated(mgr ctrl.Manager, o controller.Options) error {
+	o.Gate.Register(func() {
+		if err := setupNamespaced(mgr, o); err != nil {
+			panic(err)
+		}
+	}, v1alpha1.ProviderConfigGroupVersionKind)
+	return nil
+}
+
+// setupNamespaced adds a controller that reconciles namespaced ProviderConfigs
 // by accounting for their current usage.
-func SetupNamespaced(mgr ctrl.Manager, o controller.Options) error {
+func setupNamespaced(mgr ctrl.Manager, o controller.Options) error {
 	name := providerconfig.ControllerName(v1alpha1.ProviderConfigGroupKind)
 
 	of := resource.ProviderConfigKinds{
@@ -51,9 +62,20 @@ func SetupNamespaced(mgr ctrl.Manager, o controller.Options) error {
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
-// SetupClusterScoped adds a controller that reconciles cluster-scoped
+// SetupClusterScopedGated calls setupClusterScoped when the
+// ClusterProviderConfig GVR becomes available in the API.
+func SetupClusterScopedGated(mgr ctrl.Manager, o controller.Options) error {
+	o.Gate.Register(func() {
+		if err := setupClusterScoped(mgr, o); err != nil {
+			panic(err)
+		}
+	}, v1alpha1.ClusterProviderConfigGroupVersionKind)
+	return nil
+}
+
+// setupClusterScoped adds a controller that reconciles cluster-scoped
 // ClusterProviderConfigs by accounting for their current usage.
-func SetupClusterScoped(mgr ctrl.Manager, o controller.Options) error {
+func setupClusterScoped(mgr ctrl.Manager, o controller.Options) error {
 	name := providerconfig.ControllerName(v1alpha1.ClusterProviderConfigGroupKind)
 
 	of := resource.ProviderConfigKinds{
