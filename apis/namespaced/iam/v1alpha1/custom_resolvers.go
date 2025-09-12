@@ -45,6 +45,7 @@ func (mg *Token) ResolveReferences(ctx context.Context, c client.Reader) error {
 		Reference:    mg.Spec.ForProvider.Owner.IDRef,
 		Selector:     mg.Spec.ForProvider.Owner.IDSelector,
 		To:           ref,
+		Namespace:    mg.Namespace,
 	})
 	if err != nil {
 		return errors.Wrap(err, "mg.Spec.ForProvider.Owner.ID")
