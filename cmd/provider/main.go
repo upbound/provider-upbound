@@ -17,29 +17,28 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/gate"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/customresourcesgate"
 
-	"github.com/upbound/provider-upbound/apis"
-	"github.com/upbound/provider-upbound/apis/v1alpha1"
+	apiscluster "github.com/upbound/provider-upbound/apis/cluster"
+	apis "github.com/upbound/provider-upbound/apis/namespaced"
 	"github.com/upbound/provider-upbound/internal/bootcheck"
 	upbound "github.com/upbound/provider-upbound/internal/controller"
 	"github.com/upbound/provider-upbound/internal/features"
@@ -62,14 +61,12 @@ func main() {
 		pollInterval     = app.Flag("poll", "How often individual resources will be checked for drift from the desired state").Default("1m").Duration()
 		maxReconcileRate = app.Flag("max-reconcile-rate", "The global maximum rate per second at which resources may checked for drift from the desired state.").Default("10").Int()
 
-		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
-		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
-		enableManagementPolicies   = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("false").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
+		enableManagementPolicies = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("false").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	zl := zap.New(zap.UseDevMode(*debug))
-	log := logging.NewLogrLogger(zl.WithName("provider-upbound"))
+	logger := logging.NewLogrLogger(zl.WithName("provider-upbound"))
 	ctrl.SetLogger(zl)
 
 	cfg, err := ctrl.GetConfig()
@@ -86,40 +83,25 @@ func main() {
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	kingpin.FatalIfError(err, "Cannot create controller manager")
-	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add Upbound APIs to scheme")
+	kingpin.FatalIfError(apiscluster.AddToScheme(mgr.GetScheme()), "Cannot add cluster-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add namespace-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(extv1.AddToScheme(mgr.GetScheme()), "Cannot add Core API Extensions to scheme")
 
 	o := controller.Options{
-		Logger:                  log,
+		Logger:                  logger,
 		MaxConcurrentReconciles: *maxReconcileRate,
 		PollInterval:            *pollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(*maxReconcileRate),
 		Features:                &feature.Flags{},
-	}
-
-	if *enableExternalSecretStores {
-		o.Features.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
-
-		// Ensure default store config exists.
-		kingpin.FatalIfError(resource.Ignore(kerrors.IsAlreadyExists, mgr.GetClient().Create(context.Background(), &v1alpha1.StoreConfig{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "default",
-			},
-			Spec: v1alpha1.StoreConfigSpec{
-				// NOTE(turkenh): We only set required spec and expect optional
-				// ones to properly be initialized with CRD level default values.
-				SecretStoreConfig: xpv1.SecretStoreConfig{
-					DefaultScope: *namespace,
-				},
-			},
-		})), "cannot create default store config")
+		Gate:                    new(gate.Gate[schema.GroupVersionKind]),
 	}
 
 	if *enableManagementPolicies {
 		o.Features.Enable(features.EnableAlphaManagementPolicies)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaManagementPolicies)
+		logger.Info("Alpha feature enabled", "flag", features.EnableAlphaManagementPolicies)
 	}
 
 	kingpin.FatalIfError(upbound.Setup(mgr, o), "Cannot setup Upbound controllers")
+	kingpin.FatalIfError(customresourcesgate.Setup(mgr, o), "Cannot setup CustomResourcesGate controller")
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }

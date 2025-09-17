@@ -1,0 +1,11 @@
+apiVersion: iam.m.upbound.io/v1alpha1
+kind: Robot
+metadata:
+  name: serviceaccount
+  namespace: default
+spec:
+  forProvider:
+    name: serviceaccount
+    description: serviceaccount
+    owner:
+      name: upbound

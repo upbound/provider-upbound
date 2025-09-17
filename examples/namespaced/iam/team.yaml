@@ -1,0 +1,9 @@
+apiVersion: iam.m.upbound.io/v1alpha1
+kind: Team
+metadata:
+  name: team-a
+  namespace: default
+spec:
+  forProvider:
+    name: team-a
+    organizationName: upbound

@@ -20,16 +20,15 @@ import (
 	"github.com/upbound/up-sdk-go/service/repositories"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	v1alpha1 "github.com/upbound/provider-upbound/apis/repository/v1alpha1"
+	repov1alpha1common "github.com/upbound/provider-upbound/apis/common/repository/v1alpha1"
 )
 
 // StatusFromResponse set status from response
-func StatusFromResponse(resp repositories.Repository) v1alpha1.RepositoryObservation {
-
-	status := v1alpha1.RepositoryObservation{}
+func StatusFromResponse(resp repositories.Repository) repov1alpha1common.RepositoryObservation {
+	status := repov1alpha1common.RepositoryObservation{}
 
 	status.AccountID = resp.AccountID
-	status.CreatedAt = metav1.Time{Time: resp.CreatedAt}
+	status.CreatedAt = &metav1.Time{Time: resp.CreatedAt}
 	status.CurrentVersion = resp.CurrentVersion
 	status.Name = resp.Name
 	status.Official = resp.Official

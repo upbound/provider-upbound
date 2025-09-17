@@ -1,0 +1,14 @@
+apiVersion: iam.m.upbound.io/v1alpha1
+kind: Token
+metadata:
+  name: access-token
+  namespace: default
+spec:
+  forProvider:
+    name: access-token
+    owner:
+      type: robots
+      idRef:
+        name: serviceaccount
+  writeConnectionSecretToRef:
+    name: up-access-token

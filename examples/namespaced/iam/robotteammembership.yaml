@@ -1,0 +1,11 @@
+apiVersion: iam.m.upbound.io/v1alpha1
+kind: RobotTeamMembership
+metadata:
+  name: serviceaccount-team-a
+  namespace: default
+spec:
+  forProvider:
+    robotIdRef:
+      name: serviceaccount
+    teamIdRef:
+      name: team-a

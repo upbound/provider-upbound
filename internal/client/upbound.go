@@ -19,26 +19,22 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/golang-jwt/jwt"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/upbound/up-sdk-go"
 
-	"github.com/upbound/provider-upbound/apis/v1alpha1"
+	pcv1alpha1common "github.com/upbound/provider-upbound/apis/common/providerconfig/v1alpha1"
 )
 
 const (
@@ -64,23 +60,27 @@ var (
 	mu                    sync.Mutex
 )
 
-func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*up.Config, Profile, error) {
-	pc, err := getProviderConfig(ctx, kube, mg)
+// GetProviderConfigSpecFn returns the referenced ProviderConfig's spec from a
+// legacy cluster-scoped MR or from a namespaced MR.
+type GetProviderConfigSpecFn func(ctx context.Context, kube client.Client) (*pcv1alpha1common.ProviderConfigSpec, error)
+
+func NewConfig(ctx context.Context, kube client.Client, getPCFn GetProviderConfigSpecFn) (*up.Config, Profile, error) {
+	pcSpec, err := getPCFn(ctx, kube)
 	if err != nil {
-		return nil, Profile{}, errors.Wrapf(err, "cannot get provider config %s", mg.GetProviderConfigReference().Name)
+		return nil, Profile{}, errors.Wrap(err, "cannot get provider config")
 	}
 
-	data, err := getCredentials(ctx, kube, pc)
+	data, err := resource.CommonCredentialExtractor(ctx, pcSpec.Credentials.Source, kube, pcSpec.Credentials.CommonCredentialSelectors)
 	if err != nil {
 		return nil, Profile{}, errors.Wrap(err, "cannot get credentials")
 	}
 
-	profile, err := createOrUpdateProfile(ctx, data, pc)
+	profile, err := createOrUpdateProfile(ctx, data, pcSpec)
 	if err != nil {
 		return nil, Profile{}, err
 	}
 
-	apiEndpoint, err := getAPIEndpoint(pc)
+	apiEndpoint, err := getAPIEndpoint(pcSpec)
 	if err != nil {
 		return nil, Profile{}, err
 	}
@@ -92,19 +92,7 @@ func NewConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*u
 	}), *profile, nil
 }
 
-func getProviderConfig(ctx context.Context, kube client.Client, mg resource.Managed) (*v1alpha1.ProviderConfig, error) {
-	pc := &v1alpha1.ProviderConfig{}
-	if err := kube.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
-		return nil, err
-	}
-	return pc, nil
-}
-
-func getCredentials(ctx context.Context, kube client.Client, pc *v1alpha1.ProviderConfig) ([]byte, error) {
-	return resource.CommonCredentialExtractor(ctx, pc.Spec.Credentials.Source, kube, pc.Spec.Credentials.CommonCredentialSelectors)
-}
-
-func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.ProviderConfig) (*Profile, error) { //nolint:gocyclo
+func createOrUpdateProfile(ctx context.Context, data []byte, pcSpec *pcv1alpha1common.ProviderConfigSpec) (*Profile, error) { //nolint:gocyclo
 	// use this shared to avoid get new session-token for each reconcile
 	mu.Lock()
 	defer mu.Unlock()
@@ -143,7 +131,7 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
-	ep, err := getAPIEndpoint(pc)
+	ep, err := getAPIEndpoint(pcSpec)
 	if err != nil {
 		return nil, errors.Wrap(err, errInvalidAPIEndpoint)
 	}
@@ -154,12 +142,12 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	res, err := client.Do(req)
+	cli := &http.Client{}
+	res, err := cli.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
-	defer res.Body.Close() // nolint:gosec,errcheck
+	defer func() { _ = res.Body.Close() }()
 
 	session, err := extractSession(res, CookieName)
 	if err != nil {
@@ -171,7 +159,7 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pc *v1alpha1.Provid
 	if len(session) != 0 {
 		profile.Session = session
 	}
-	profile.Account = pc.Spec.Organization
+	profile.Account = pcSpec.Organization
 	profileMemory = profile
 
 	return &profile, nil
@@ -195,14 +183,14 @@ func createLoginRequest(ctx context.Context, loginURL *url.URL, jsonStr []byte) 
 	return req, nil
 }
 
-func getAPIEndpoint(pc *v1alpha1.ProviderConfig) (*url.URL, error) {
-	if pc.Spec.Endpoint == nil {
+func getAPIEndpoint(pcSpec *pcv1alpha1common.ProviderConfigSpec) (*url.URL, error) {
+	if pcSpec.Endpoint == nil {
 		// Use a default API endpoint when not specified in the provider config
 		apiEndpoint := DefaultAPIEndpoint
 		return apiEndpoint, nil
 	}
 
-	endpointURL, err := url.Parse(*pc.Spec.Endpoint)
+	endpointURL, err := url.Parse(*pcSpec.Endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -237,28 +225,10 @@ func createUpClient(apiEndpoint *url.URL, session string) up.Client {
 	return cl
 }
 
-// ExtractUserIDFromToken extracts userId from SessionToken
-func ExtractUserIDFromToken(sToken string) (string, error) {
-	token := strings.Split(sToken, ".")
-	if len(token) != 3 {
-		return "", errors.New("invalid token format")
-	}
-
-	claimsData, _ := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(token[1])
-
-	var claims map[string]interface{}
-	err := json.Unmarshal(claimsData, &claims)
-	if err != nil {
-		return "", errors.Wrap(err, "unable to unmarshal token claims")
-	}
-
-	return fmt.Sprintf("%d", claims["id"]), nil
-}
-
 // constructAuth constructs the body of an Upbound Cloud authentication request
 // given the provided credentials.
 func constructAuth(token string) (*auth, error) {
-	id, err := ParseID(token)
+	id, err := parseID(token)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +240,7 @@ func constructAuth(token string) (*auth, error) {
 }
 
 // parseID gets a user ID by either parsing a token.
-func ParseID(token string) (string, error) {
+func parseID(token string) (string, error) {
 	p := jwt.Parser{}
 	claims := &jwt.StandardClaims{}
 	_, _, err := p.ParseUnverified(token, claims)

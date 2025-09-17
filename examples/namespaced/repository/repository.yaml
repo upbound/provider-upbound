@@ -1,0 +1,9 @@
+apiVersion: repository.m.upbound.io/v1alpha1
+kind: Repository
+metadata:
+  name: example
+  namespace: default
+spec:
+  forProvider:
+    name: example
+    organizationName: upbound

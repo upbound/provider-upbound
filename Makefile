@@ -15,6 +15,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 # Setup Go
 
 NPROCS ?= 1
+GOLANGCILINT_VERSION = 2.1.2
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.Version=$(VERSION)
@@ -25,7 +26,7 @@ GO111MODULE = on
 # ====================================================================================
 # Setup Kubernetes tools
 
-UP_VERSION = v0.38.1
+UP_VERSION = v0.41.0
 UP_CHANNEL = stable
 -include build/makelib/k8s_tools.mk
 
