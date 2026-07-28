@@ -26,10 +26,10 @@ import (
 	uperrors "github.com/upbound/up-sdk-go/errors"
 	"github.com/upbound/up-sdk-go/service/repositories"
 
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
 	repov1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/repository/v1alpha1"
 	upclient "github.com/upbound/provider-upbound/internal/client"
@@ -106,7 +106,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		Repositories: []repositories.Repository{resp.Repository},
 	}
 
-	cr.Status.SetConditions(v1.Available())
+	cr.Status.SetConditions(xpv2.Available())
 	cr.Status.AtProvider.RepositoryObservation = repository.StatusFromResponse(repoList.Repositories[0])
 
 	publishPolicy := repositories.PublishPolicy("draft")

@@ -17,164 +17,164 @@ limitations under the License.
 
 package v1alpha1
 
-import xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+import xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
 // GetCondition of this Robot.
-func (mg *Robot) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (mg *Robot) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
 // GetManagementPolicies of this Robot.
-func (mg *Robot) GetManagementPolicies() xpv1.ManagementPolicies {
+func (mg *Robot) GetManagementPolicies() xpv2.ManagementPolicies {
 	return mg.Spec.ManagementPolicies
 }
 
 // GetProviderConfigReference of this Robot.
-func (mg *Robot) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+func (mg *Robot) GetProviderConfigReference() *xpv2.ProviderConfigReference {
 	return mg.Spec.ProviderConfigReference
 }
 
 // GetWriteConnectionSecretToReference of this Robot.
-func (mg *Robot) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+func (mg *Robot) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
 // SetConditions of this Robot.
-func (mg *Robot) SetConditions(c ...xpv1.Condition) {
+func (mg *Robot) SetConditions(c ...xpv2.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
 // SetManagementPolicies of this Robot.
-func (mg *Robot) SetManagementPolicies(r xpv1.ManagementPolicies) {
+func (mg *Robot) SetManagementPolicies(r xpv2.ManagementPolicies) {
 	mg.Spec.ManagementPolicies = r
 }
 
 // SetProviderConfigReference of this Robot.
-func (mg *Robot) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
+func (mg *Robot) SetProviderConfigReference(r *xpv2.ProviderConfigReference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
 // SetWriteConnectionSecretToReference of this Robot.
-func (mg *Robot) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
+func (mg *Robot) SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }
 
 // GetCondition of this RobotTeamMembership.
-func (mg *RobotTeamMembership) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (mg *RobotTeamMembership) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
 // GetManagementPolicies of this RobotTeamMembership.
-func (mg *RobotTeamMembership) GetManagementPolicies() xpv1.ManagementPolicies {
+func (mg *RobotTeamMembership) GetManagementPolicies() xpv2.ManagementPolicies {
 	return mg.Spec.ManagementPolicies
 }
 
 // GetProviderConfigReference of this RobotTeamMembership.
-func (mg *RobotTeamMembership) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+func (mg *RobotTeamMembership) GetProviderConfigReference() *xpv2.ProviderConfigReference {
 	return mg.Spec.ProviderConfigReference
 }
 
 // GetWriteConnectionSecretToReference of this RobotTeamMembership.
-func (mg *RobotTeamMembership) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+func (mg *RobotTeamMembership) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
 // SetConditions of this RobotTeamMembership.
-func (mg *RobotTeamMembership) SetConditions(c ...xpv1.Condition) {
+func (mg *RobotTeamMembership) SetConditions(c ...xpv2.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
 // SetManagementPolicies of this RobotTeamMembership.
-func (mg *RobotTeamMembership) SetManagementPolicies(r xpv1.ManagementPolicies) {
+func (mg *RobotTeamMembership) SetManagementPolicies(r xpv2.ManagementPolicies) {
 	mg.Spec.ManagementPolicies = r
 }
 
 // SetProviderConfigReference of this RobotTeamMembership.
-func (mg *RobotTeamMembership) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
+func (mg *RobotTeamMembership) SetProviderConfigReference(r *xpv2.ProviderConfigReference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
 // SetWriteConnectionSecretToReference of this RobotTeamMembership.
-func (mg *RobotTeamMembership) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
+func (mg *RobotTeamMembership) SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }
 
 // GetCondition of this Team.
-func (mg *Team) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (mg *Team) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
 // GetManagementPolicies of this Team.
-func (mg *Team) GetManagementPolicies() xpv1.ManagementPolicies {
+func (mg *Team) GetManagementPolicies() xpv2.ManagementPolicies {
 	return mg.Spec.ManagementPolicies
 }
 
 // GetProviderConfigReference of this Team.
-func (mg *Team) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+func (mg *Team) GetProviderConfigReference() *xpv2.ProviderConfigReference {
 	return mg.Spec.ProviderConfigReference
 }
 
 // GetWriteConnectionSecretToReference of this Team.
-func (mg *Team) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+func (mg *Team) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
 // SetConditions of this Team.
-func (mg *Team) SetConditions(c ...xpv1.Condition) {
+func (mg *Team) SetConditions(c ...xpv2.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
 // SetManagementPolicies of this Team.
-func (mg *Team) SetManagementPolicies(r xpv1.ManagementPolicies) {
+func (mg *Team) SetManagementPolicies(r xpv2.ManagementPolicies) {
 	mg.Spec.ManagementPolicies = r
 }
 
 // SetProviderConfigReference of this Team.
-func (mg *Team) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
+func (mg *Team) SetProviderConfigReference(r *xpv2.ProviderConfigReference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
 // SetWriteConnectionSecretToReference of this Team.
-func (mg *Team) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
+func (mg *Team) SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }
 
 // GetCondition of this Token.
-func (mg *Token) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+func (mg *Token) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
 // GetManagementPolicies of this Token.
-func (mg *Token) GetManagementPolicies() xpv1.ManagementPolicies {
+func (mg *Token) GetManagementPolicies() xpv2.ManagementPolicies {
 	return mg.Spec.ManagementPolicies
 }
 
 // GetProviderConfigReference of this Token.
-func (mg *Token) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+func (mg *Token) GetProviderConfigReference() *xpv2.ProviderConfigReference {
 	return mg.Spec.ProviderConfigReference
 }
 
 // GetWriteConnectionSecretToReference of this Token.
-func (mg *Token) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+func (mg *Token) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
 // SetConditions of this Token.
-func (mg *Token) SetConditions(c ...xpv1.Condition) {
+func (mg *Token) SetConditions(c ...xpv2.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
 // SetManagementPolicies of this Token.
-func (mg *Token) SetManagementPolicies(r xpv1.ManagementPolicies) {
+func (mg *Token) SetManagementPolicies(r xpv2.ManagementPolicies) {
 	mg.Spec.ManagementPolicies = r
 }
 
 // SetProviderConfigReference of this Token.
-func (mg *Token) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
+func (mg *Token) SetProviderConfigReference(r *xpv2.ProviderConfigReference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
 // SetWriteConnectionSecretToReference of this Token.
-func (mg *Token) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
+func (mg *Token) SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }

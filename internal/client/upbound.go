@@ -207,7 +207,7 @@ func createUpClient(apiEndpoint *url.URL, session string) up.Client {
 	// Create a cookie jar and set the session cookie
 	cj, _ := cookiejar.New(nil)
 	cj.SetCookies(apiEndpoint, []*http.Cookie{
-		{
+		{ //nolint:gosec
 			Name:  CookieName,
 			Value: session,
 		},
