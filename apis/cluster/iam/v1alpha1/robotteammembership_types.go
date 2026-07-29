@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -32,11 +32,11 @@ type RobotTeamMembershipParameters struct {
 	RobotID *string `json:"robotId,omitempty"`
 
 	// RobotIDRef references a Robot to and retrieves its robotId.
-	RobotIDRef *xpv1.Reference `json:"robotIdRef,omitempty"`
+	RobotIDRef *xpv2.Reference `json:"robotIdRef,omitempty"`
 
 	// RobotIDSelector selects a reference to a Robot in order to retrieve its
 	// robotId.
-	RobotIDSelector *xpv1.Selector `json:"robotIdSelector,omitempty"`
+	RobotIDSelector *xpv2.Selector `json:"robotIdSelector,omitempty"`
 
 	// TeamID of the team to add the robot to. Either teamId or teamIdRef or
 	// teamIdSelector is required.
@@ -44,11 +44,11 @@ type RobotTeamMembershipParameters struct {
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.
-	TeamIDRef *xpv1.Reference `json:"teamIdRef,omitempty"`
+	TeamIDRef *xpv2.Reference `json:"teamIdRef,omitempty"`
 
 	// TeamIDSelector selects a reference to a Team in order to retrieve its
 	// teamId.
-	TeamIDSelector *xpv1.Selector `json:"teamIdSelector,omitempty"`
+	TeamIDSelector *xpv2.Selector `json:"teamIdSelector,omitempty"`
 }
 
 // RobotTeamMembershipObservation are the observable fields of a RobotTeamMembership.
@@ -56,14 +56,14 @@ type RobotTeamMembershipObservation struct{}
 
 // A RobotTeamMembershipSpec defines the desired state of a RobotTeamMembership.
 type RobotTeamMembershipSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       RobotTeamMembershipParameters `json:"forProvider"`
+	xpv2.ClusterManagedResourceSpec `json:",inline"`
+	ForProvider                     RobotTeamMembershipParameters `json:"forProvider"`
 }
 
 // A RobotTeamMembershipStatus represents the observed state of a RobotTeamMembership.
 type RobotTeamMembershipStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          RobotTeamMembershipObservation `json:"atProvider,omitempty"`
+	xpv2.ManagedResourceStatus `json:",inline"`
+	AtProvider                 RobotTeamMembershipObservation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true

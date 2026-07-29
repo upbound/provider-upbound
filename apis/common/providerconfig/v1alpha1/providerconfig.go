@@ -18,15 +18,15 @@ package v1alpha1
 
 // +kubebuilder:object:generate=true
 
-import xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+import xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
 // ProviderCredentials required to authenticate.
 type ProviderCredentials struct {
 	// Source of the provider credentials.
 	// +kubebuilder:validation:Enum=Secret
-	Source xpv1.CredentialsSource `json:"source"`
+	Source xpv2.CredentialsSource `json:"source"`
 
-	xpv1.CommonCredentialSelectors `json:",inline"`
+	xpv2.CommonCredentialSelectors `json:",inline"`
 }
 
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.

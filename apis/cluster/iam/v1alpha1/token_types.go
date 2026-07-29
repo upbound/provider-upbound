@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // Owner defines the owner of the token.
@@ -41,12 +41,12 @@ type Owner struct {
 	// IDRef references a Robot, User or a ControlPlane, depending on value of
 	// Type field, to retrieve its ID.
 	// +optional
-	IDRef *xpv1.Reference `json:"idRef,omitempty"`
+	IDRef *xpv2.Reference `json:"idRef,omitempty"`
 
 	// IDSelector selects a reference to a Robot, User or a ControlPlane,
 	// depending on value of Type field, to retrieve its ID.
 	// +optional
-	IDSelector *xpv1.Selector `json:"idSelector,omitempty"`
+	IDSelector *xpv2.Selector `json:"idSelector,omitempty"`
 }
 
 // TokenParameters are the configurable fields of a Token.
@@ -66,14 +66,14 @@ type TokenObservation struct{}
 
 // A TokenSpec defines the desired state of a Token.
 type TokenSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       TokenParameters `json:"forProvider"`
+	xpv2.ClusterManagedResourceSpec `json:",inline"`
+	ForProvider                     TokenParameters `json:"forProvider"`
 }
 
 // A TokenStatus represents the observed state of a Token.
 type TokenStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          TokenObservation `json:"atProvider,omitempty"`
+	xpv2.ManagedResourceStatus `json:",inline"`
+	AtProvider                 TokenObservation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true

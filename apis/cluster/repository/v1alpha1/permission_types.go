@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -43,11 +43,11 @@ type PermissionParameters struct {
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.
-	TeamIDRef *xpv1.Reference `json:"teamIdRef,omitempty"`
+	TeamIDRef *xpv2.Reference `json:"teamIdRef,omitempty"`
 
 	// TeamIDSelector selects a reference to a Team in order to retrieve its
 	// teamId.
-	TeamIDSelector *xpv1.Selector `json:"teamIdSelector,omitempty"`
+	TeamIDSelector *xpv2.Selector `json:"teamIdSelector,omitempty"`
 
 	// Repository of the repository to add the permission to. Either repository or repositoryRef or
 	// repositorySelector is required.
@@ -55,11 +55,11 @@ type PermissionParameters struct {
 	Repository *string `json:"repository,omitempty"`
 
 	// RepositoryRef references a Repository to and retrieves its name.
-	RepositoryRef *xpv1.Reference `json:"repositoryRef,omitempty"`
+	RepositoryRef *xpv2.Reference `json:"repositoryRef,omitempty"`
 
 	// RepositorySelector selects a reference to a Repository in order to retrieve its
 	// name.
-	RepositorySelector *xpv1.Selector `json:"repositorySelector,omitempty"`
+	RepositorySelector *xpv2.Selector `json:"repositorySelector,omitempty"`
 }
 
 // PermissionObservation are the observable fields of a Permission.
@@ -67,14 +67,14 @@ type PermissionObservation struct{}
 
 // A PermissionSpec defines the desired state of a Permission.
 type PermissionSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       PermissionParameters `json:"forProvider"`
+	xpv2.ClusterManagedResourceSpec `json:",inline"`
+	ForProvider                     PermissionParameters `json:"forProvider"`
 }
 
 // A PermissionStatus represents the observed state of a Permission.
 type PermissionStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          PermissionObservation `json:"atProvider,omitempty"`
+	xpv2.ManagedResourceStatus `json:",inline"`
+	AtProvider                 PermissionObservation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true

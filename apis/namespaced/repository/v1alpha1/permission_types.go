@@ -22,8 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // PermissionParameters are the configurable fields of a Permission.
@@ -45,11 +44,11 @@ type PermissionParameters struct {
 	TeamID *string `json:"teamId,omitempty"`
 
 	// TeamIDRef references a Team to and retrieves its teamId.
-	TeamIDRef *xpv1.NamespacedReference `json:"teamIdRef,omitempty"`
+	TeamIDRef *xpv2.NamespacedReference `json:"teamIdRef,omitempty"`
 
 	// TeamIDSelector selects a reference to a Team in order to retrieve its
 	// teamId.
-	TeamIDSelector *xpv1.NamespacedSelector `json:"teamIdSelector,omitempty"`
+	TeamIDSelector *xpv2.NamespacedSelector `json:"teamIdSelector,omitempty"`
 
 	// Repository of the repository to add the permission to. Either repository or repositoryRef or
 	// repositorySelector is required.
@@ -57,11 +56,11 @@ type PermissionParameters struct {
 	Repository *string `json:"repository,omitempty"`
 
 	// RepositoryRef references a Repository to and retrieves its name.
-	RepositoryRef *xpv1.NamespacedReference `json:"repositoryRef,omitempty"`
+	RepositoryRef *xpv2.NamespacedReference `json:"repositoryRef,omitempty"`
 
 	// RepositorySelector selects a reference to a Repository in order to retrieve its
 	// name.
-	RepositorySelector *xpv1.NamespacedSelector `json:"repositorySelector,omitempty"`
+	RepositorySelector *xpv2.NamespacedSelector `json:"repositorySelector,omitempty"`
 }
 
 // PermissionObservation are the observable fields of a Permission.
@@ -75,8 +74,8 @@ type PermissionSpec struct {
 
 // A PermissionStatus represents the observed state of a Permission.
 type PermissionStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          PermissionObservation `json:"atProvider,omitempty"`
+	xpv2.ManagedResourceStatus `json:",inline"`
+	AtProvider                 PermissionObservation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true
