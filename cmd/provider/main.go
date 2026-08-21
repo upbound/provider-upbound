@@ -23,11 +23,15 @@ import (
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
@@ -62,6 +66,7 @@ func main() {
 		maxReconcileRate = app.Flag("max-reconcile-rate", "The global maximum rate per second at which resources may checked for drift from the desired state.").Default("10").Int()
 
 		enableManagementPolicies = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("false").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
+		enableSecretCache        = app.Flag("enable-secret-cache", "Enable caching of Secret objects. When true, Secrets are served from the informer cache instead of direct API calls. This reduces API server load but increases memory usage.").Default("true").Envar("ENABLE_SECRET_CACHE").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -72,20 +77,39 @@ func main() {
 	cfg, err := ctrl.GetConfig()
 	kingpin.FatalIfError(err, "Cannot get API server rest config")
 
+	var clientOpts client.Options
+	if !*enableSecretCache {
+		clientOpts = client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{&corev1.Secret{}},
+			},
+		}
+	}
+
+	scheme := runtime.NewScheme()
+	kingpin.FatalIfError(clientgoscheme.AddToScheme(scheme), "Cannot add client-go scheme")
+	kingpin.FatalIfError(apiscluster.AddToScheme(scheme), "Cannot add cluster-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(apis.AddToScheme(scheme), "Cannot add namespace-scoped Upbound MR APIs to scheme")
+	kingpin.FatalIfError(extv1.AddToScheme(scheme), "Cannot add Core API Extensions to scheme")
+
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, *maxReconcileRate), ctrl.Options{
+		Scheme:           scheme,
 		LeaderElection:   *leaderElection,
 		LeaderElectionID: "crossplane-leader-election-provider-upbound",
 		Cache: cache.Options{
 			SyncPeriod: syncInterval,
+			ByObject: map[client.Object]cache.ByObject{
+				&extv1.CustomResourceDefinition{}: {
+					Transform: customresourcesgate.TransformStripCRDSchema,
+				},
+			},
 		},
+		Client:                     clientOpts,
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	kingpin.FatalIfError(err, "Cannot create controller manager")
-	kingpin.FatalIfError(apiscluster.AddToScheme(mgr.GetScheme()), "Cannot add cluster-scoped Upbound MR APIs to scheme")
-	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add namespace-scoped Upbound MR APIs to scheme")
-	kingpin.FatalIfError(extv1.AddToScheme(mgr.GetScheme()), "Cannot add Core API Extensions to scheme")
 
 	o := controller.Options{
 		Logger:                  logger,

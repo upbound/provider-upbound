@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -98,6 +99,12 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&ProviderConfig{}, &ProviderConfigList{})
-	SchemeBuilder.Register(&ClusterProviderConfig{}, &ClusterProviderConfigList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(SchemeGroupVersion, &ProviderConfig{}, &ProviderConfigList{})
+		return nil
+	})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(SchemeGroupVersion, &ClusterProviderConfig{}, &ClusterProviderConfigList{})
+		return nil
+	})
 }
