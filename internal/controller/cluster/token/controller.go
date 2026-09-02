@@ -26,6 +26,9 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,7 +46,9 @@ const (
 	errNotToken     = "managed resource is not a Token custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 
-	errNewClient = "cannot create new client"
+	errNewClient                   = "cannot create new client"
+	errGetConnectionSecret         = "cannot get connection secret"
+	errConnectionSecretUnavailable = "token exists upstream but connection secret is missing or empty; the token value cannot be recovered via the API - delete the upstream token to allow automatic recreation"
 )
 
 // A connector is expected to produce an ExternalClient when its Connect method
@@ -74,6 +79,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
+		kube:     c.kube,
 		tokens:   tokens.NewClient(cfg),
 		accounts: accounts.NewClient(cfg),
 		robots:   robots.NewClient(cfg),
@@ -88,8 +94,7 @@ func (e *external) Disconnect(_ context.Context) error {
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
+	kube     client.Client
 	tokens   *tokens.Client
 	accounts *accounts.Client
 	robots   *robots.Client
@@ -113,6 +118,24 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(resource.Ignore(uperrors.IsNotFound, err), "failed to get token")
 	}
 	cr.Status.SetConditions(xpv2.Available())
+
+	// The token JWT is returned by the API only on creation (tokens.Create), not
+	// on subsequent reads (tokens.Get). If the MR was adopted without its
+	// connection secret — e.g., restored from a backup that excluded secrets, or
+	// re-applied from Git — the token value is unrecoverable. Erroring here
+	// prevents the reconciler from calling PublishConnection with an empty map,
+	// which would otherwise write a DATA=0 secret that silently breaks consumers.
+	if ref := cr.GetWriteConnectionSecretToReference(); ref != nil && ref.Name != "" {
+		s := &corev1.Secret{}
+		err := c.kube.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, s)
+		if kerrors.IsNotFound(err) || (err == nil && len(s.Data) == 0) {
+			return managed.ExternalObservation{}, errors.New(errConnectionSecretUnavailable)
+		}
+		if err != nil {
+			return managed.ExternalObservation{}, errors.Wrap(err, errGetConnectionSecret)
+		}
+	}
+
 	return managed.ExternalObservation{
 		ResourceExists:   true,
 		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.Name,
