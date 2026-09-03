@@ -230,10 +230,12 @@ func TestSessionClearingTransport(t *testing.T) {
 				key:     key,
 			}
 
-			req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
-			if _, err := transport.RoundTrip(req); err != nil {
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", nil)
+			resp, err := transport.RoundTrip(req)
+			if err != nil {
 				t.Fatalf("\n%s\nRoundTrip(...): unexpected error: %v", tc.reason, err)
 			}
+			_ = resp.Body.Close()
 
 			cache.mu.Lock()
 			_, hit := cache.sessions[key]
@@ -304,10 +306,12 @@ func Test401ThenRelogin_EndToEnd(t *testing.T) {
 		wrapped: &stubTransport{statusCode: http.StatusUnauthorized},
 		key:     key,
 	}
-	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
-	if _, err := transport.RoundTrip(req); err != nil {
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", nil)
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
 		t.Fatalf("Test401ThenRelogin_EndToEnd: RoundTrip unexpected error: %v", err)
 	}
+	_ = resp.Body.Close()
 
 	cache.mu.Lock()
 	_, stillPresent := cache.sessions[key]

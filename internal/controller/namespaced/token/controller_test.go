@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/upbound/up-sdk-go"
-	upfake "github.com/upbound/up-sdk-go/fake"
 	uperrors "github.com/upbound/up-sdk-go/errors"
+	upfake "github.com/upbound/up-sdk-go/fake"
 	"github.com/upbound/up-sdk-go/service/common"
 	"github.com/upbound/up-sdk-go/service/tokens"
 
@@ -43,10 +43,10 @@ import (
 )
 
 const (
-	testTokenUUID       = "4654b8b5-c01d-4fbe-8800-22c347c21383"
-	testTokenName       = "test-token"
-	testSecretName      = "test-connection-secret"
-	testTokenNamespace  = "test-namespace"
+	testTokenUUID      = "4654b8b5-c01d-4fbe-8800-22c347c21383"
+	testTokenName      = "test-token"
+	testSecretName     = "test-connection-secret"
+	testTokenNamespace = "test-namespace"
 )
 
 // tokenCR returns a namespaced Token CR with the external-name annotation set
