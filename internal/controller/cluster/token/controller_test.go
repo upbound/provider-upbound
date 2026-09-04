@@ -203,6 +203,22 @@ func TestObserve(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetConnectionSecret),
 			},
 		},
+		"TokenFound_DeletingMR_SkipsSecretCheck": {
+			reason: "a Token being deleted must not be blocked by a missing connection secret; the check is skipped so Delete() can run and remove the finalizer",
+			args: args{
+				mg: func() *iamv1alpha1cluster.Token {
+					cr := tokenCR(true)
+					now := metav1.Now()
+					cr.DeletionTimestamp = &now
+					return cr
+				}(),
+				tokensDo: tokensMockDoFn(nil, true),
+				kubeGet:  xptest.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, testSecretName)),
+			},
+			want: want{
+				o: managed.ExternalObservation{ResourceExists: true, ResourceUpToDate: true},
+			},
+		},
 	}
 
 	for name, tc := range cases {

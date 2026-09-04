@@ -195,7 +195,9 @@ func TestSessionClearingTransport(t *testing.T) {
 	key := sessionKey{Endpoint: "https://api.upbound.io", Org: "test-org", CredHash: "abc123"}
 
 	type args struct {
-		statusCode int
+		statusCode       int
+		cachedSession    string // session stored in cache at call time
+		transportSession string // session the transport was created with
 	}
 	type want struct {
 		cacheHit bool
@@ -207,13 +209,18 @@ func TestSessionClearingTransport(t *testing.T) {
 		want
 	}{
 		"401_EvictsCacheEntry": {
-			reason: "a 401 response means the cached session is invalid; the entry must be removed so the next reconcile re-logins",
-			args:   args{statusCode: http.StatusUnauthorized},
+			reason: "a 401 for the session this transport carries must evict the cache entry so the next reconcile re-logins",
+			args:   args{statusCode: http.StatusUnauthorized, cachedSession: "s1", transportSession: "s1"},
 			want:   want{cacheHit: false},
 		},
 		"200_RetainsCacheEntry": {
 			reason: "a successful response must leave the cache untouched",
-			args:   args{statusCode: http.StatusOK},
+			args:   args{statusCode: http.StatusOK, cachedSession: "s1", transportSession: "s1"},
+			want:   want{cacheHit: true},
+		},
+		"401_DoesNotEvictFresherSession": {
+			reason: "if a concurrent reconcile already refreshed the session under the same key, a stale 401 must not evict the newer entry",
+			args:   args{statusCode: http.StatusUnauthorized, cachedSession: "s2-refreshed", transportSession: "s1-stale"},
 			want:   want{cacheHit: true},
 		},
 	}
@@ -222,12 +229,13 @@ func TestSessionClearingTransport(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			resetCacheForTest()
 			cache.mu.Lock()
-			cache.sessions[key] = Profile{Session: "existing-session"}
+			cache.sessions[key] = Profile{Session: tc.args.cachedSession}
 			cache.mu.Unlock()
 
 			transport := &sessionClearingTransport{
 				wrapped: &stubTransport{statusCode: tc.args.statusCode},
 				key:     key,
+				session: tc.args.transportSession,
 			}
 
 			req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", nil)
@@ -270,9 +278,11 @@ func TestGetOrCreateSession_LoginFailed(t *testing.T) {
 	}
 }
 
-// Test401ThenRelogin_EndToEnd verifies the full Bug-B recovery chain:
-// a 401 response evicts the cached session, and the subsequent Connect() call
-// (modelled here as a direct call to getOrCreateSession) re-logins successfully.
+// Test401ThenRelogin_EndToEnd verifies the full Bug-B recovery chain (cached
+// session not refreshed on 401): a 401 response from the Upbound API evicts the
+// cached session via sessionClearingTransport, and the subsequent Connect() call
+// — modelled here as a direct call to getOrCreateSession — re-logins successfully
+// rather than reusing the now-invalid cached session.
 func Test401ThenRelogin_EndToEnd(t *testing.T) {
 	resetCacheForTest()
 
@@ -296,8 +306,9 @@ func Test401ThenRelogin_EndToEnd(t *testing.T) {
 		Org:      org,
 		CredHash: hex.EncodeToString(h[:]),
 	}
+	seededSession := makeSessionJWT(t, time.Now().Add(1*time.Hour).Unix())
 	cache.mu.Lock()
-	cache.sessions[key] = Profile{Session: makeSessionJWT(t, time.Now().Add(1*time.Hour).Unix())}
+	cache.sessions[key] = Profile{Session: seededSession}
 	cache.mu.Unlock()
 
 	// Step 2 — simulate a 401 from the Upbound API; the transport must evict
@@ -305,6 +316,7 @@ func Test401ThenRelogin_EndToEnd(t *testing.T) {
 	transport := &sessionClearingTransport{
 		wrapped: &stubTransport{statusCode: http.StatusUnauthorized},
 		key:     key,
+		session: seededSession,
 	}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", nil)
 	resp, err := transport.RoundTrip(req)

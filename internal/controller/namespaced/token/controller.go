@@ -119,10 +119,10 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	// re-applied from Git — the token value is unrecoverable. Erroring here
 	// prevents the reconciler from calling PublishConnection with an empty map,
 	// which would otherwise write a DATA=0 secret that silently breaks consumers.
-	if ref := cr.GetWriteConnectionSecretToReference(); ref != nil && ref.Name != "" {
+	if ref := cr.GetWriteConnectionSecretToReference(); ref != nil && ref.Name != "" && !meta.WasDeleted(cr) {
 		s := &corev1.Secret{}
 		err := e.kube.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: ref.Name}, s)
-		if kerrors.IsNotFound(err) || (err == nil && len(s.Data) == 0) {
+		if kerrors.IsNotFound(err) || (err == nil && len(s.Data["token"]) == 0) {
 			return managed.ExternalObservation{}, errors.New(errConnectionSecretUnavailable)
 		}
 		if err != nil {

@@ -200,6 +200,10 @@ func login(ctx context.Context, data []byte, pcSpec *pcv1alpha1common.ProviderCo
 type sessionClearingTransport struct {
 	wrapped http.RoundTripper
 	key     sessionKey
+	// session is the value this transport was created with. The eviction check
+	// compares against it so a concurrent re-login that stored a fresh session
+	// under the same key is not accidentally evicted by a stale 401.
+	session string
 }
 
 func (t *sessionClearingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -209,7 +213,9 @@ func (t *sessionClearingTransport) RoundTrip(req *http.Request) (*http.Response,
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		cache.mu.Lock()
-		delete(cache.sessions, t.key)
+		if p, ok := cache.sessions[t.key]; ok && p.Session == t.session {
+			delete(cache.sessions, t.key)
+		}
 		cache.mu.Unlock()
 	}
 	return resp, err
@@ -261,6 +267,7 @@ func createUpClient(apiEndpoint *url.URL, session string, key sessionKey) up.Cli
 			Transport: &sessionClearingTransport{
 				wrapped: http.DefaultTransport,
 				key:     key,
+				session: session,
 			},
 		}
 		u.UserAgent = UserAgent
