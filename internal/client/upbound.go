@@ -19,6 +19,8 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -44,20 +46,39 @@ const (
 	// CookieName is the default cookie name used to identify a session token.
 	CookieName = "SID"
 
-	errNoIDInToken         = "no user id in personal access token"
-	errInvalidAPIEndpoint  = "unable to parse the API endpoint"
-	errLoginFailed         = "unable to login"
-	loginPath              = "/v1/login"
-	errReadBody            = "unable to read response body"
-	errParseCookieFmt      = "unable to parse session cookie: %s"
-	errSessionTokenParse   = "failed to parse session token"
-	errSessionTokenExpired = "session token has expired"
+	errNoIDInToken        = "no user id in personal access token"
+	errInvalidAPIEndpoint = "unable to parse the API endpoint"
+	errLoginFailed        = "unable to login"
+	loginPath             = "/v1/login"
+	errReadBody           = "unable to read response body"
+	errParseCookieFmt     = "unable to parse session cookie: %s"
 )
+
+// sessionKey uniquely identifies an authentication identity.
+// A cached session is only reused when all three fields match, making
+// credential rotation and endpoint/org changes a natural cache miss.
+type sessionKey struct {
+	Endpoint string
+	Org      string
+	// CredHash is the hex-encoded SHA-256 of the raw credential bytes.
+	// Using a hash avoids storing the raw credential and decouples the key
+	// from any particular credential encoding (JWT, opaque token, etc.).
+	CredHash string
+}
+
+// sessionCache holds one authenticated Profile per identity. Entries are
+// evicted on 401 or near-expiry; they are never swept proactively. Growth is
+// bounded by the number of distinct (endpoint, org, credHash) tuples seen over
+// the process lifetime — in practice one entry per ProviderConfig — so a
+// periodic sweep is not warranted at current scale.
+type sessionCache struct {
+	mu       sync.Mutex
+	sessions map[sessionKey]Profile
+}
 
 var (
 	DefaultAPIEndpoint, _ = url.Parse("https://api.upbound.io")
-	profileMemory         = Profile{}
-	mu                    sync.Mutex
+	cache                 = &sessionCache{sessions: make(map[sessionKey]Profile)}
 )
 
 // GetProviderConfigSpecFn returns the referenced ProviderConfig's spec from a
@@ -75,52 +96,77 @@ func NewConfig(ctx context.Context, kube client.Client, getPCFn GetProviderConfi
 		return nil, Profile{}, errors.Wrap(err, "cannot get credentials")
 	}
 
-	profile, err := createOrUpdateProfile(ctx, data, pcSpec)
-	if err != nil {
-		return nil, Profile{}, err
-	}
-
 	apiEndpoint, err := getAPIEndpoint(pcSpec)
 	if err != nil {
+		return nil, Profile{}, errors.Wrap(err, errInvalidAPIEndpoint)
+	}
+
+	profile, key, err := getOrCreateSession(ctx, data, pcSpec, apiEndpoint)
+	if err != nil {
 		return nil, Profile{}, err
 	}
 
-	cl := createUpClient(apiEndpoint, profile.Session)
+	cl := createUpClient(apiEndpoint, profile.Session, key)
 
 	return up.NewConfig(func(conf *up.Config) {
 		conf.Client = cl
 	}), *profile, nil
 }
 
-func createOrUpdateProfile(ctx context.Context, data []byte, pcSpec *pcv1alpha1common.ProviderConfigSpec) (*Profile, error) { //nolint:gocyclo
-	// use this shared to avoid get new session-token for each reconcile
-	mu.Lock()
-	defer mu.Unlock()
-
-	if profileMemory.Session != "" {
-		// Check the expiration of the profileMemory.Session token
-		p := jwt.Parser{}
-		claims := &jwt.StandardClaims{}
-		_, _, err := p.ParseUnverified(profileMemory.Session, claims)
-		if err != nil {
-			return nil, errors.Wrap(err, errSessionTokenParse)
-		}
-
-		// Check if the token expiration time (claims.ExpiresAt) is greater than 0
-		// and if the current Unix time (time.Now().Unix()) is greater than 10 minutes
-		// before the token expires (claims.ExpiresAt - 10 minutes). This condition is
-		// used to determine if the token is close to expiration and requires refreshing.
-		if claims.ExpiresAt > 0 && time.Now().Unix() > claims.ExpiresAt-10*60 {
-			profileMemory.Session = ""
-			return nil, errors.New(errSessionTokenExpired)
-		}
-
-		return &profileMemory, nil
+// getOrCreateSession returns a valid cached session for the given identity, or
+// logs in and caches a new one. It re-logins proactively when the session JWT
+// is within 10 minutes of expiry, rather than returning an error and waiting
+// for the next reconcile.
+func getOrCreateSession(ctx context.Context, data []byte, pcSpec *pcv1alpha1common.ProviderConfigSpec, apiEndpoint *url.URL) (*Profile, sessionKey, error) {
+	h := sha256.Sum256(data)
+	key := sessionKey{
+		Endpoint: apiEndpoint.String(),
+		Org:      pcSpec.Organization,
+		CredHash: hex.EncodeToString(h[:]),
 	}
 
-	cliConfig := &CLIConfig{}
-	profile := cliConfig.Upbound.Profiles[cliConfig.Upbound.Default]
+	// cache.mu is held for the full duration of this function, including the
+	// login network call below. This serialises concurrent cache misses for the
+	// same identity (only one goroutine logs in; others wait and then return the
+	// freshly cached session) at the cost of blocking unrelated identities
+	// during login. With a typical deployment of 1–3 ProviderConfigs the
+	// contention window is negligible. If this becomes a bottleneck the fix is
+	// to release the lock before login() and re-acquire it to store the result,
+	// accepting that two goroutines may login concurrently for the same key.
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
 
+	if p, ok := cache.sessions[key]; ok {
+		// ParseUnverified is intentional: we only need to read the expiry claim
+		// to decide whether to re-login. Signature verification would require the
+		// server's public key; we don't have it and don't need it here since we
+		// minted this session ourselves via the login endpoint.
+		parser := jwt.Parser{}
+		claims := &jwt.StandardClaims{}
+		if _, _, err := parser.ParseUnverified(p.Session, claims); err == nil {
+			// Session is still valid if it has no expiry or expires more than
+			// 10 minutes from now.
+			if claims.ExpiresAt == 0 || time.Now().Unix() <= claims.ExpiresAt-10*60 {
+				return &p, key, nil
+			}
+		}
+		// Session is invalid or approaching expiry — remove it and re-login
+		// immediately rather than returning an error and failing the reconcile.
+		delete(cache.sessions, key)
+	}
+
+	profile, err := login(ctx, data, pcSpec, apiEndpoint)
+	if err != nil {
+		return nil, key, err
+	}
+
+	cache.sessions[key] = *profile
+	return profile, key, nil
+}
+
+// login authenticates against the Upbound API and returns a Profile containing
+// the resulting session cookie.
+func login(ctx context.Context, data []byte, pcSpec *pcv1alpha1common.ProviderConfigSpec, apiEndpoint *url.URL) (*Profile, error) {
 	auth, err := constructAuth(string(data))
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
@@ -131,19 +177,14 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pcSpec *pcv1alpha1c
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
-	ep, err := getAPIEndpoint(pcSpec)
-	if err != nil {
-		return nil, errors.Wrap(err, errInvalidAPIEndpoint)
-	}
-	loginURL := createLoginURL(ep)
+	loginURL := createLoginURL(apiEndpoint)
 	req, err := createLoginRequest(ctx, loginURL, jsonStr)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	cli := &http.Client{}
-	res, err := cli.Do(req)
+	res, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
@@ -154,40 +195,60 @@ func createOrUpdateProfile(ctx context.Context, data []byte, pcSpec *pcv1alpha1c
 		return nil, errors.Wrap(err, errLoginFailed)
 	}
 
-	profile.Type = TokenProfileType
-	profile.ID = auth.ID
+	profile := Profile{
+		Type:    TokenProfileType,
+		ID:      auth.ID,
+		Account: pcSpec.Organization,
+	}
 	if len(session) != 0 {
 		profile.Session = session
 	}
-	profile.Account = pcSpec.Organization
-	profileMemory = profile
-
 	return &profile, nil
 }
 
+// sessionClearingTransport is an http.RoundTripper that removes the cached
+// session entry for a specific identity when the API returns 401 Unauthorized.
+// This ensures the next Connect() call re-authenticates with current credentials
+// rather than continuing to use an invalidated session.
+type sessionClearingTransport struct {
+	wrapped http.RoundTripper
+	key     sessionKey
+	// session is the value this transport was created with. The eviction check
+	// compares against it so a concurrent re-login that stored a fresh session
+	// under the same key is not accidentally evicted by a stale 401.
+	session string
+}
+
+func (t *sessionClearingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.wrapped.RoundTrip(req)
+	if err != nil {
+		return resp, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		cache.mu.Lock()
+		if p, ok := cache.sessions[t.key]; ok && p.Session == t.session {
+			delete(cache.sessions, t.key)
+		}
+		cache.mu.Unlock()
+	}
+	return resp, err
+}
+
 func createLoginURL(apiEndpoint *url.URL) *url.URL {
-	loginURL := &url.URL{
+	return &url.URL{
 		Scheme: apiEndpoint.Scheme,
 		Host:   apiEndpoint.Host,
 		Path:   loginPath,
 	}
-	return loginURL
 }
 
 func createLoginRequest(ctx context.Context, loginURL *url.URL, jsonStr []byte) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, loginURL.String(), bytes.NewReader(jsonStr))
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
+	return http.NewRequestWithContext(ctx, http.MethodPost, loginURL.String(), bytes.NewReader(jsonStr))
 }
 
 func getAPIEndpoint(pcSpec *pcv1alpha1common.ProviderConfigSpec) (*url.URL, error) {
 	if pcSpec.Endpoint == nil {
-		// Use a default API endpoint when not specified in the provider config
-		apiEndpoint := DefaultAPIEndpoint
-		return apiEndpoint, nil
+		return DefaultAPIEndpoint, nil
 	}
 
 	endpointURL, err := url.Parse(*pcSpec.Endpoint)
@@ -203,8 +264,7 @@ func getAPIEndpoint(pcSpec *pcv1alpha1common.ProviderConfigSpec) (*url.URL, erro
 	return endpointURL, nil
 }
 
-func createUpClient(apiEndpoint *url.URL, session string) up.Client {
-	// Create a cookie jar and set the session cookie
+func createUpClient(apiEndpoint *url.URL, session string, key sessionKey) up.Client {
 	cj, _ := cookiejar.New(nil)
 	cj.SetCookies(apiEndpoint, []*http.Cookie{
 		{ //nolint:gosec
@@ -213,11 +273,15 @@ func createUpClient(apiEndpoint *url.URL, session string) up.Client {
 		},
 	})
 
-	// Create the Up client configuration
 	cl := up.NewClient(func(u *up.HTTPClient) {
 		u.BaseURL = apiEndpoint
 		u.HTTP = &http.Client{
 			Jar: cj,
+			Transport: &sessionClearingTransport{
+				wrapped: http.DefaultTransport,
+				key:     key,
+				session: session,
+			},
 		}
 		u.UserAgent = UserAgent
 	})
