@@ -66,6 +66,11 @@ type sessionKey struct {
 	CredHash string
 }
 
+// sessionCache holds one authenticated Profile per identity. Entries are
+// evicted on 401 or near-expiry; they are never swept proactively. Growth is
+// bounded by the number of distinct (endpoint, org, credHash) tuples seen over
+// the process lifetime — in practice one entry per ProviderConfig — so a
+// periodic sweep is not warranted at current scale.
 type sessionCache struct {
 	mu       sync.Mutex
 	sessions map[sessionKey]Profile
@@ -120,6 +125,14 @@ func getOrCreateSession(ctx context.Context, data []byte, pcSpec *pcv1alpha1comm
 		CredHash: hex.EncodeToString(h[:]),
 	}
 
+	// cache.mu is held for the full duration of this function, including the
+	// login network call below. This serialises concurrent cache misses for the
+	// same identity (only one goroutine logs in; others wait and then return the
+	// freshly cached session) at the cost of blocking unrelated identities
+	// during login. With a typical deployment of 1–3 ProviderConfigs the
+	// contention window is negligible. If this becomes a bottleneck the fix is
+	// to release the lock before login() and re-acquire it to store the result,
+	// accepting that two goroutines may login concurrently for the same key.
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 

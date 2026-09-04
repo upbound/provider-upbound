@@ -278,7 +278,7 @@ func TestGetOrCreateSession_LoginFailed(t *testing.T) {
 	}
 }
 
-// Test401ThenRelogin_EndToEnd verifies the full Bug-B recovery chain (cached
+// Test401ThenRelogin_EndToEnd verifies the full recovery chain (cached
 // session not refreshed on 401): a 401 response from the Upbound API evicts the
 // cached session via sessionClearingTransport, and the subsequent Connect() call
 // — modelled here as a direct call to getOrCreateSession — re-logins successfully
