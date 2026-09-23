@@ -53,7 +53,7 @@ func setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
-	if o.Features.Enabled(features.EnableAlphaManagementPolicies) {
+	if o.Features.Enabled(features.EnableManagementPolicies) {
 		reconcilerOpts = append(reconcilerOpts, managed.WithManagementPolicies())
 	}
 
