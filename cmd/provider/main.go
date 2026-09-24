@@ -65,7 +65,7 @@ func main() {
 		pollInterval     = app.Flag("poll", "How often individual resources will be checked for drift from the desired state").Default("1m").Duration()
 		maxReconcileRate = app.Flag("max-reconcile-rate", "The global maximum rate per second at which resources may checked for drift from the desired state.").Default("10").Int()
 
-		enableManagementPolicies = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("false").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
+		enableManagementPolicies = app.Flag("enable-management-policies", "Enable support for Management Policies. Enabled by default; set to false to opt out.").Default("true").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
 		enableSecretCache        = app.Flag("enable-secret-cache", "Enable caching of Secret objects. When true, Secrets are served from the informer cache instead of direct API calls. This reduces API server load but increases memory usage.").Default("true").Envar("ENABLE_SECRET_CACHE").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -121,8 +121,8 @@ func main() {
 	}
 
 	if *enableManagementPolicies {
-		o.Features.Enable(features.EnableAlphaManagementPolicies)
-		logger.Info("Alpha feature enabled", "flag", features.EnableAlphaManagementPolicies)
+		o.Features.Enable(features.EnableManagementPolicies)
+		logger.Info("Feature enabled", "flag", features.EnableManagementPolicies)
 	}
 
 	kingpin.FatalIfError(upbound.Setup(mgr, o), "Cannot setup Upbound controllers")

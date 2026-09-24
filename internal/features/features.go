@@ -20,8 +20,10 @@ import "github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 
 // Feature flags.
 const (
-	// EnableAlphaManagementPolicies enables alpha support for
-	// Management Policies. See the below design for more details.
+	// EnableManagementPolicies enables support for Management Policies.
+	// Management Policies are a stable Crossplane feature and this is enabled
+	// by default; it can be turned off with --enable-management-policies=false.
+	// See the below design for more details.
 	// https://github.com/crossplane/crossplane/pull/3531
-	EnableAlphaManagementPolicies feature.Flag = "EnableAlphaManagementPolicies"
+	EnableManagementPolicies feature.Flag = "EnableManagementPolicies"
 )
