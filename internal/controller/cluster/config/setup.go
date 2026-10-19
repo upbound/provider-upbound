@@ -27,6 +27,11 @@ import (
 	v1alpha1cluster "github.com/upbound/provider-upbound/apis/cluster/v1alpha1"
 )
 
+// Setup adds the controller directly, without waiting for its CRD.
+func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
+	return setup(mgr, o)
+}
+
 // SetupGated calls setup when the legacy
 // ProviderConfig GVR becomes available in the API.
 func SetupGated(mgr ctrl.Manager, o xpcontroller.Options) error {

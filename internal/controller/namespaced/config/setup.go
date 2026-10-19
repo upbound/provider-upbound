@@ -28,6 +28,11 @@ import (
 	"github.com/upbound/provider-upbound/apis/namespaced/v1alpha1"
 )
 
+// SetupNamespaced adds the controller directly, without waiting for its CRD.
+func SetupNamespaced(mgr ctrl.Manager, o controller.Options) error {
+	return setupNamespaced(mgr, o)
+}
+
 // SetupNamespacedGated calls setupNamespaced when the namespaced
 // ProviderConfig GVR becomes available in the API.
 func SetupNamespacedGated(mgr ctrl.Manager, o controller.Options) error {
@@ -60,6 +65,11 @@ func setupNamespaced(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1alpha1.ProviderConfig{}).
 		Watches(&v1alpha1.ProviderConfigUsage{}, &resource.EnqueueRequestForProviderConfig{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+}
+
+// SetupClusterScoped adds the controller directly, without waiting for its CRD.
+func SetupClusterScoped(mgr ctrl.Manager, o controller.Options) error {
+	return setupClusterScoped(mgr, o)
 }
 
 // SetupClusterScopedGated calls setupClusterScoped when the

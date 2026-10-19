@@ -29,6 +29,11 @@ import (
 	"github.com/upbound/provider-upbound/internal/features"
 )
 
+// Setup adds the controller directly, without waiting for its CRD.
+func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
+	return setup(mgr, o)
+}
+
 // SetupGated calls setup when the legacy
 // Repository GVR becomes available in the API.
 func SetupGated(mgr ctrl.Manager, o xpcontroller.Options) error {
