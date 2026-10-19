@@ -43,16 +43,20 @@ func SetupGated(mgr ctrl.Manager, o xpcontroller.Options) error {
 // setup adds a controller that reconciles Token managed resources.
 func setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	name := managed.ControllerName(iamv1alpha1cluster.TokenGroupKind)
+	recorder := event.NewAPIRecorder(mgr.GetEventRecorderFor(name))
 	reconcilerOpts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
+			kube:                      mgr.GetClient(),
+			apiReader:                 mgr.GetAPIReader(),
+			recorder:                  recorder,
+			managementPoliciesEnabled: o.Features.Enabled(features.EnableManagementPolicies),
+			usage:                     resource.NewLegacyProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1cluster.ProviderConfigUsage{}),
 		}),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
 		managed.WithInitializers(),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		managed.WithRecorder(recorder),
 	}
 
 	if o.Features.Enabled(features.EnableManagementPolicies) {

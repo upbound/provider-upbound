@@ -19,7 +19,9 @@ package token
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -47,13 +49,27 @@ const (
 	errNewClient = "cannot create new client"
 
 	errGetConnectionSecret         = "cannot get connection secret"
-	errConnectionSecretUnavailable = "token exists upstream but connection secret is missing or empty; the token value cannot be recovered via the API - delete the upstream token to allow automatic recreation"
+	errConnectionSecretUnavailable = "token exists upstream but connection secret is missing or empty; the token value cannot be recovered via the API - delete the upstream token to allow automatic recreation, or set spec.connectionSecretRecovery: Recreate"
+	errDeleteToken                 = "cannot delete the upstream token to recreate it"
+	errRecreateNotAllowed          = "connection secret is missing or empty, but spec.connectionSecretRecovery: Recreate needs management policies that allow Create and Delete"
+	errRecreatedRecently           = "connection secret is missing or empty, but the token was created less than 10 minutes ago; it is recreated at most once per 10 minutes"
+	msgFmtRecreatingToken          = "connection secret is missing or empty: deleted upstream token %s so that a new token is created and published"
+
+	reasonRecreatingToken event.Reason = "RecreatingToken"
+
+	// recreateCooldown is how long after creating a token the provider won't
+	// recreate it, so that a new token whose secret can't be published or
+	// is lost again right away isn't recreated on every reconcile.
+	recreateCooldown = 10 * time.Minute
 )
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube client.Client
+	kube                      client.Client
+	apiReader                 client.Reader
+	recorder                  event.Recorder
+	managementPoliciesEnabled bool
 }
 
 // Connect typically produces an ExternalClient by:
@@ -73,10 +89,13 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		kube:     c.kube,
-		tokens:   tokens.NewClient(cfg),
-		accounts: accounts.NewClient(cfg),
-		robots:   robots.NewClient(cfg),
+		kube:                      c.kube,
+		apiReader:                 c.apiReader,
+		recorder:                  c.recorder,
+		managementPoliciesEnabled: c.managementPoliciesEnabled,
+		tokens:                    tokens.NewClient(cfg),
+		accounts:                  accounts.NewClient(cfg),
+		robots:                    robots.NewClient(cfg),
 	}, nil
 }
 
@@ -88,10 +107,16 @@ func (e *external) Disconnect(_ context.Context) error {
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	kube     client.Client
-	tokens   *tokens.Client
-	accounts *accounts.Client
-	robots   *robots.Client
+	kube client.Client
+	// apiReader bypasses the cache to confirm a missing connection secret.
+	apiReader client.Reader
+	recorder  event.Recorder
+	// managementPoliciesEnabled is true if the managed reconciler honours
+	// spec.managementPolicies.
+	managementPoliciesEnabled bool
+	tokens                    *tokens.Client
+	accounts                  *accounts.Client
+	robots                    *robots.Client
 }
 
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -120,12 +145,20 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	// prevents the reconciler from calling PublishConnection with an empty map,
 	// which would otherwise write a DATA=0 secret that silently breaks consumers.
 	if ref := cr.GetWriteConnectionSecretToReference(); ref != nil && ref.Name != "" && !meta.WasDeleted(cr) {
+		key := types.NamespacedName{Namespace: cr.GetNamespace(), Name: ref.Name}
 		s := &corev1.Secret{}
-		err := e.kube.Get(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: ref.Name}, s)
+		err := e.kube.Get(ctx, key, s)
 		if kerrors.IsNotFound(err) || (err == nil && len(s.Data["token"]) == 0) {
-			return managed.ExternalObservation{}, errors.New(errConnectionSecretUnavailable)
-		}
-		if err != nil {
+			if cr.Spec.ConnectionSecretRecovery != iamv1alpha1.ConnectionSecretRecoveryRecreate {
+				return managed.ExternalObservation{}, errors.New(errConnectionSecretUnavailable)
+			}
+			// A deleted token is reported as gone, so that the managed
+			// reconciler creates a new one and publishes its connection secret.
+			deleted, rerr := e.recreate(ctx, cr, uid, key)
+			if rerr != nil || deleted {
+				return managed.ExternalObservation{}, rerr
+			}
+		} else if err != nil {
 			return managed.ExternalObservation{}, errors.Wrap(err, errGetConnectionSecret)
 		}
 	}
@@ -134,6 +167,32 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		ResourceExists:   true,
 		ResourceUpToDate: resp.AttributeSet["name"] == cr.Spec.ForProvider.Name,
 	}, nil
+}
+
+// recreate deletes the upstream token whose connection secret is missing or
+// empty and returns true, once an uncached read confirms the miss and the
+// policies allow it. It returns false and no error if the secret is present.
+func (e *external) recreate(ctx context.Context, cr *iamv1alpha1.Token, uid uuid.UUID, key types.NamespacedName) (bool, error) {
+	// Never revoke a working token because of a lagging cache.
+	s := &corev1.Secret{}
+	if err := e.apiReader.Get(ctx, key, s); resource.IgnoreNotFound(err) != nil {
+		return false, errors.Wrap(err, errGetConnectionSecret)
+	}
+	if len(s.Data["token"]) > 0 {
+		return false, nil
+	}
+	p := managed.NewManagementPoliciesResolver(e.managementPoliciesEnabled, cr.GetManagementPolicies())
+	if !p.ShouldCreate() || !p.ShouldDelete() {
+		return false, errors.New(errRecreateNotAllowed)
+	}
+	if meta.ExternalCreateSucceededDuring(cr, recreateCooldown) {
+		return false, errors.New(errRecreatedRecently)
+	}
+	if err := resource.Ignore(uperrors.IsNotFound, e.tokens.Delete(ctx, uid)); err != nil {
+		return false, errors.Wrap(err, errDeleteToken)
+	}
+	e.recorder.Event(cr, event.Warning(reasonRecreatingToken, errors.Errorf(msgFmtRecreatingToken, uid)))
+	return true, nil
 }
 
 func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
