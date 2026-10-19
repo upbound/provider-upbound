@@ -57,6 +57,21 @@ spec:
           spec:
             description: A TokenSpec defines the desired state of a Token.
             properties:
+              connectionSecretRecovery:
+                default: None
+                description: |-
+                  ConnectionSecretRecovery determines what happens when the token exists
+                  upstream but its connection secret is missing or has no token, for example
+                  after a restore without secrets. The token value is returned only on
+                  creation, so it can't be read back. None (the default) reports an error.
+                  Recreate deletes the upstream token so that a new one is created and
+                  published; it does nothing if the deletionPolicy is Orphan or the
+                  management policies don't allow both Create and Delete. Consumers holding
+                  the old token must restart to use the new one.
+                enum:
+                - None
+                - Recreate
+                type: string
               deletionPolicy:
                 default: Delete
                 description: |-
