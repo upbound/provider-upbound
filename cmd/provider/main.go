@@ -17,12 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	authv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,8 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/gate"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -125,7 +129,41 @@ func main() {
 		logger.Info("Feature enabled", "flag", features.EnableManagementPolicies)
 	}
 
-	kingpin.FatalIfError(upbound.Setup(mgr, o), "Cannot setup Upbound controllers")
-	kingpin.FatalIfError(customresourcesgate.Setup(mgr, o), "Cannot setup CustomResourcesGate controller")
+	precheckCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	canSafeStart, err := canWatchCRD(precheckCtx, mgr)
+	kingpin.FatalIfError(err, "SafeStart precheck failed")
+	if canSafeStart {
+		kingpin.FatalIfError(upbound.SetupGated(mgr, o), "Cannot setup Upbound controllers")
+		kingpin.FatalIfError(customresourcesgate.Setup(mgr, o), "Cannot setup CustomResourcesGate controller")
+	} else {
+		logger.Info("Provider has missing RBAC permissions for watching CRDs, controller SafeStart capability will be disabled")
+		kingpin.FatalIfError(upbound.Setup(mgr, o), "Cannot setup Upbound controllers")
+	}
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+}
+
+func canWatchCRD(ctx context.Context, mgr manager.Manager) (bool, error) {
+	if err := authv1.AddToScheme(mgr.GetScheme()); err != nil {
+		return false, err
+	}
+	verbs := []string{"get", "list", "watch"}
+	for _, verb := range verbs {
+		sar := &authv1.SelfSubjectAccessReview{
+			Spec: authv1.SelfSubjectAccessReviewSpec{
+				ResourceAttributes: &authv1.ResourceAttributes{
+					Group:    "apiextensions.k8s.io",
+					Resource: "customresourcedefinitions",
+					Verb:     verb,
+				},
+			},
+		}
+		if err := mgr.GetClient().Create(ctx, sar); err != nil {
+			return false, errors.Wrapf(err, "unable to perform RBAC check for verb %s on CustomResourceDefinitions", verb)
+		}
+		if !sar.Status.Allowed {
+			return false, nil
+		}
+	}
+	return true, nil
 }

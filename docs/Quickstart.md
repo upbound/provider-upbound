@@ -29,6 +29,9 @@ kubectl wait "providers.pkg.crossplane.io/provider-upbound" --for=condition=Inst
 kubectl wait "providers.pkg.crossplane.io/provider-upbound" --for=condition=Healthy --timeout=180s
 ```
 
+On Crossplane v1, which doesn't grant providers RBAC to watch CustomResourceDefinitions,
+the provider logs that SafeStart is disabled and starts all its controllers directly.
+
 ### Configuration
 
 Provider Upbound needs a valid Upbound personal access token (pat) to authenticate with Upbound.

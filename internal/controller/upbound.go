@@ -39,3 +39,17 @@ func Setup(mgr ctrl.Manager, o xpv2controller.Options) error {
 
 	return nil
 }
+
+// SetupGated registers all Upbound controllers with the supplied gate. They
+// are set up once their CRDs become available in the API.
+func SetupGated(mgr ctrl.Manager, o xpv2controller.Options) error {
+	if err := controllercluster.SetupGated(mgr, o); err != nil {
+		return errors.Wrap(err, "failed to setup controllers related to cluster-scoped managed resources")
+	}
+
+	if err := controller.SetupGated(mgr, o); err != nil {
+		return errors.Wrap(err, "failed to setup controllers related to namespaced managed resources")
+	}
+
+	return nil
+}
