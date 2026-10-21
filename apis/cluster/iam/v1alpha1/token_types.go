@@ -62,6 +62,21 @@ type TokenParameters struct {
 	Owner Owner `json:"owner"`
 }
 
+// ConnectionSecretRecovery determines what the provider does when a Token
+// exists upstream but its connection secret is missing or has no token.
+// +kubebuilder:validation:Enum=None;Recreate
+type ConnectionSecretRecovery string
+
+const (
+	// ConnectionSecretRecoveryNone reports the missing connection secret as an
+	// error and leaves the upstream token alone.
+	ConnectionSecretRecoveryNone ConnectionSecretRecovery = "None"
+
+	// ConnectionSecretRecoveryRecreate deletes the upstream token so that a
+	// new one is created and published to the connection secret.
+	ConnectionSecretRecoveryRecreate ConnectionSecretRecovery = "Recreate"
+)
+
 // TokenObservation are the observable fields of a Token.
 type TokenObservation struct{}
 
@@ -69,6 +84,18 @@ type TokenObservation struct{}
 type TokenSpec struct {
 	xpv2.ClusterManagedResourceSpec `json:",inline"`
 	ForProvider                     TokenParameters `json:"forProvider"`
+
+	// ConnectionSecretRecovery determines what happens when the token exists
+	// upstream but its connection secret is missing or has no token, for example
+	// after a restore without secrets. The token value is returned only on
+	// creation, so it can't be read back. None (the default) reports an error.
+	// Recreate deletes the upstream token so that a new one is created and
+	// published; it does nothing if the deletionPolicy is Orphan or the
+	// management policies don't allow both Create and Delete. Consumers holding
+	// the old token must restart to use the new one.
+	// +optional
+	// +kubebuilder:default=None
+	ConnectionSecretRecovery ConnectionSecretRecovery `json:"connectionSecretRecovery,omitempty"`
 }
 
 // A TokenStatus represents the observed state of a Token.
