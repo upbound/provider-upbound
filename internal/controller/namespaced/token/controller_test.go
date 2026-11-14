@@ -20,16 +20,21 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xptest "github.com/crossplane/crossplane-runtime/v2/pkg/test"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -96,17 +101,54 @@ func tokensMockDoFn(err error, populate bool) func(*http.Request, interface{}) e
 	}
 }
 
+// recreateCR returns tokenCR(true) with spec.connectionSecretRecovery
+// Recreate and the default management policies, modified by fns.
+func recreateCR(fns ...func(*iamv1alpha1.Token)) *iamv1alpha1.Token {
+	cr := tokenCR(true)
+	cr.Spec.ConnectionSecretRecovery = iamv1alpha1.ConnectionSecretRecoveryRecreate
+	cr.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
+	for _, fn := range fns {
+		fn(cr)
+	}
+	return cr
+}
+
+// tokensAPIFn answers GET like tokensMockDoFn(nil, true) and DELETE with
+// deleteErr.
+func tokensAPIFn(deleteErr error) func(*http.Request, interface{}) error {
+	return func(req *http.Request, obj interface{}) error {
+		if req.Method == http.MethodDelete {
+			return deleteErr
+		}
+		return tokensMockDoFn(nil, true)(req, obj)
+	}
+}
+
+// recorder records events.
+type recorder struct{ events []event.Event }
+
+func (r *recorder) Event(_ runtime.Object, e event.Event)      { r.events = append(r.events, e) }
+func (r *recorder) WithAnnotations(_ ...string) event.Recorder { return r }
+
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
+	errNotFound := kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, testSecretName)
+	get := "GET /" + testTokenUUID
+	del := "DELETE /" + testTokenUUID
+	read := "uncached GET " + testSecretName
+	recreating := []event.Event{event.Warning(reasonRecreatingToken, errors.Errorf(msgFmtRecreatingToken, testTokenUUID))}
 
 	type args struct {
 		mg       resource.Managed
 		tokensDo func(*http.Request, interface{}) error
 		kubeGet  xptest.MockGetFn
+		apiGet   xptest.MockGetFn // uncached reads
 	}
 	type want struct {
-		o   managed.ExternalObservation
-		err error
+		o      managed.ExternalObservation
+		err    error
+		calls  []string // upstream calls and uncached reads; checked if set
+		events []event.Event
 	}
 
 	cases := map[string]struct {
@@ -162,8 +204,9 @@ func TestObserve(t *testing.T) {
 				kubeGet:  xptest.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, testSecretName)),
 			},
 			want: want{
-				o:   managed.ExternalObservation{},
-				err: errors.New(errConnectionSecretUnavailable),
+				o:     managed.ExternalObservation{},
+				err:   errors.New(errConnectionSecretUnavailable),
+				calls: []string{get},
 			},
 		},
 		"TokenFound_ConnectionSecretEmpty_ErrorSurfaced": {
@@ -221,6 +264,80 @@ func TestObserve(t *testing.T) {
 				o: managed.ExternalObservation{ResourceExists: true, ResourceUpToDate: true},
 			},
 		},
+		"Recreate_CachedMissUncachedHit_Healthy": {
+			reason: "a lagging cache must never trigger recovery: the uncached read finds the secret",
+			args: args{
+				mg:       recreateCR(),
+				tokensDo: tokensAPIFn(nil),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet: xptest.NewMockGetFn(nil, func(obj client.Object) error {
+					obj.(*corev1.Secret).Data = map[string][]byte{"token": []byte("jwt-value")}
+					return nil
+				}),
+			},
+			want: want{o: managed.ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, calls: []string{get, read}},
+		},
+		"Recreate_ConfirmedMissing_DeletesOldToken": {
+			reason: "a confirmed missing secret deletes the old token and reports it gone, so the reconciler creates a new one",
+			args: args{
+				mg:       recreateCR(func(cr *iamv1alpha1.Token) { meta.SetExternalCreateSucceeded(cr, time.Now().Add(-time.Hour)) }),
+				tokensDo: tokensAPIFn(nil),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet:   xptest.NewMockGetFn(errNotFound),
+			},
+			want: want{o: managed.ExternalObservation{ResourceExists: false}, calls: []string{get, read, del}, events: recreating},
+		},
+		"Recreate_EmptyTokenKey_DeleteNotFound_Recovers": {
+			reason: "a secret without a token is as unusable as a missing one, and an already deleted upstream token counts as gone",
+			args: args{
+				mg:       recreateCR(),
+				tokensDo: tokensAPIFn(&uperrors.Error{Status: http.StatusNotFound}),
+				apiGet:   xptest.NewMockGetFn(nil),
+			},
+			want: want{o: managed.ExternalObservation{ResourceExists: false}, calls: []string{get, read, del}, events: recreating},
+		},
+		"Recreate_UpstreamDeleteError_Returned": {
+			reason: "if the old token can't be deleted nothing changes and the error is returned",
+			args: args{
+				mg:       recreateCR(),
+				tokensDo: tokensAPIFn(errBoom),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet:   xptest.NewMockGetFn(errNotFound),
+			},
+			want: want{err: errors.Wrap(errBoom, errDeleteToken), calls: []string{get, read, del}},
+		},
+		"Recreate_UncachedReadError_Propagated": {
+			reason: "an unconfirmed miss must not trigger recovery",
+			args: args{
+				mg:       recreateCR(),
+				tokensDo: tokensAPIFn(nil),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet:   xptest.NewMockGetFn(errBoom),
+			},
+			want: want{err: errors.Wrap(errBoom, errGetConnectionSecret), calls: []string{get, read}},
+		},
+		"Recreate_ManagementPoliciesWithoutDelete_NoRecovery": {
+			reason: "management policies without Delete forbid deleting the upstream token",
+			args: args{
+				mg: recreateCR(func(cr *iamv1alpha1.Token) {
+					cr.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionCreate, xpv2.ManagementActionUpdate, xpv2.ManagementActionLateInitialize})
+				}),
+				tokensDo: tokensAPIFn(nil),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet:   xptest.NewMockGetFn(errNotFound),
+			},
+			want: want{err: errors.New(errRecreateNotAllowed), calls: []string{get, read}},
+		},
+		"Recreate_CreatedRecently_NoRecovery": {
+			reason: "a token created within the cooldown is not recreated again, so a secret that can't be published doesn't cause a recreate loop",
+			args: args{
+				mg:       recreateCR(func(cr *iamv1alpha1.Token) { meta.SetExternalCreateSucceeded(cr, time.Now().Add(-time.Minute)) }),
+				tokensDo: tokensAPIFn(nil),
+				kubeGet:  xptest.NewMockGetFn(errNotFound),
+				apiGet:   xptest.NewMockGetFn(errNotFound),
+			},
+			want: want{err: errors.New(errRecreatedRecently), calls: []string{get, read}},
+		},
 	}
 
 	for name, tc := range cases {
@@ -233,12 +350,25 @@ func TestObserve(t *testing.T) {
 				tc.args.kubeGet = xptest.NewMockGetFn(nil)
 			}
 
+			var calls []string
+			rec := &recorder{}
 			e := &external{
 				kube: &xptest.MockClient{MockGet: tc.args.kubeGet},
+				apiReader: &xptest.MockClient{MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					calls = append(calls, "uncached GET "+key.Name)
+					return tc.args.apiGet(ctx, key, obj)
+				}},
+				recorder:                  rec,
+				managementPoliciesEnabled: true,
 				tokens: tokens.NewClient(up.NewConfig(func(c *up.Config) {
 					c.Client = &upfake.MockClient{
-						MockNewRequest: upfake.NewMockNewRequestFn(nil, nil),
-						MockDo:         tc.args.tokensDo,
+						MockNewRequest: func(ctx context.Context, method, _, urlPath string, _ interface{}) (*http.Request, error) {
+							return http.NewRequestWithContext(ctx, method, "/"+urlPath, nil)
+						},
+						MockDo: func(req *http.Request, obj interface{}) error {
+							calls = append(calls, req.Method+" "+req.URL.Path)
+							return tc.args.tokensDo(req, obj)
+						},
 					}
 				})),
 			}
@@ -250,6 +380,12 @@ func TestObserve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("\n%s\nObserve(...): -want observation, +got observation:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.calls, calls); tc.want.calls != nil && diff != "" {
+				t.Errorf("\n%s\nObserve(...): -want upstream calls, +got upstream calls:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.events, rec.events, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nObserve(...): -want events, +got events:\n%s", tc.reason, diff)
 			}
 		})
 	}

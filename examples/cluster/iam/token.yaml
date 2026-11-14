@@ -3,6 +3,8 @@ kind: Token
 metadata:
   name: access-token
 spec:
+  # Recreate deletes and recreates the token if its connection secret is lost.
+  connectionSecretRecovery: None
   forProvider:
     name: access-token
     owner:

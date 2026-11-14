@@ -93,6 +93,24 @@ You can also check the status of the `Robot` object in Upbound Console.
 See the [Provider Upbound](https://marketplace.upbound.io/providers/upbound/provider-upbound/latest/crds)
 in the Upbound Marketplace for more examples.
 
+### Token Connection Secrets
+
+The Upbound API returns a token's value only when the token is created, so the
+connection secret of a `Token` is the only copy. If a `Token` is restored or
+adopted without its connection secret, the provider can't read the value back
+and reports the `Token` as not synced.
+
+Set `spec.connectionSecretRecovery: Recreate` to let the provider replace such a
+token instead: once a direct read from the API server confirms that the secret
+is missing or has no `token` key, it deletes the upstream token, emits a
+`RecreatingToken` warning event, then creates a new token and publishes it to
+the connection secret. It doesn't do this when `deletionPolicy` is `Orphan`
+(cluster-scoped `Token`), when the management policies don't allow both
+`Create` and `Delete`, or within 10 minutes of the token's last creation.
+Consumers that still hold the old token must restart to use the new one. When
+restoring a backup, restore the connection secrets before the `Token`s, or the
+tokens are replaced. The default, `None`, only reports the error.
+
 ### Clean Up
 
 You can delete your `Robot` with the following command:
